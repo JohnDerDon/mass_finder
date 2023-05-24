@@ -106,6 +106,7 @@ def generate_formulas(element_string):
     elements = list(element_dict.keys())
 
     def backtrack(formula, current_element, mass):
+        """Recursively generate all possible formulas"""
         if current_element == len(elements):
             formulas[formula] = round(mass, 4)
             return
@@ -119,6 +120,9 @@ def generate_formulas(element_string):
             backtrack(updated_formula, current_element + 1, updated_mass)
 
     backtrack("", 0, 0.0)
+    # Sort the formulas dictionary with a lambda function that sorts by the mass
+    formulas = {formula: mass for formula, mass in sorted(formulas.items(), key=lambda item: item[1])}
+
     return formulas
 
 

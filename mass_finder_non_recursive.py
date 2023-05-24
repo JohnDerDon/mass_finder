@@ -45,6 +45,8 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas, min_intensity):
                             'formula': formula,
                             'theoretical_mass': formula_mass
                         })
+                    # Assuming the formulas dictionary is organized from low to high mass
+                    if formula_mass > experimental_mass*(1+accuracy):
                         break
 
     return (float(spectrum.get('retentionTime', 0)), matching_masses) if len(matching_masses) > 0 else None

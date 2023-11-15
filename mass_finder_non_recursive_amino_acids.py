@@ -233,7 +233,7 @@ def main():
                         type=str, default='0-1000')
     parser.add_argument('-mass_range',
                         help='Set a custom mass range to analyze in the mass spec data. Example: for m/z 200-600 , enter 200-600.',
-                        type=str, default='0-2000')
+                        type=str, default='200-2000')
     parser.add_argument('-output_folder',
                         help='Specify a specific output folder. If not specified, the output will be in the same folder as the mzxml files.',
                         type=str)
@@ -245,7 +245,7 @@ def main():
                         help='If full_range is True, the output plot will span the entire time and mass range. Useful for comparing samples, but less ideal to check a single file. Default: False',
                         action='store_true')
     parser.add_argument('-plot_time_range', help='Time range to use for plotting', default='0-30', type=str)
-    parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='0-1000', type=str)
+    parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='200-2000', type=str)
 
     args = parser.parse_args()
 
@@ -265,16 +265,16 @@ def main():
     if args.elements is None:
         sys.stdout.write(f"No elements string received. Exiting.\n")
         return
-    if args.full_range and args.plot_mass_range == '0-1000':
+    if args.full_range and args.plot_mass_range == '200-2000':
         operating_system = system()
         if operating_system == 'Windows':
             reply = ''
         else:
-            sys.stdout.write(f"Running on Linux. Using standard mass_range: 0-1000.\n")
+            sys.stdout.write(f"Running on Linux. Using standard mass_range: 200-2000.\n")
             reply = 'n'
         while reply.lower() not in ['y', 'n']:
             reply = input(
-                'No mass range specified? The original range is not saved in the mzXML files. Do you want to specify your own instead of using the default 0-1000? [y/n]:\n')
+                'No mass range specified? The original range is not saved in the mzXML files. Do you want to specify your own instead of using the default 200-2000? [y/n]:\n')
         if reply.lower == 'y':
             args.plot_mass_range = input("Input your desired mass range:\n")
 

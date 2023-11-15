@@ -45,6 +45,8 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas, min_intensity):
                             'formula': formula,
                             'theoretical_mass': formula_mass
                         })
+                    # Assuming the formulas dictionary is organized from low to high mass
+                    if formula_mass > experimental_mass*(1+accuracy):
                         break
 
     return (float(spectrum.get('retentionTime', 0)), matching_masses) if len(matching_masses) > 0 else None
@@ -73,7 +75,12 @@ def find_atomic_mass(element):
                      'Ta': 180.948014, 'Os': 191.961487, 'Re': 186.955765, 'Pt': 194.964785,
                      'Ir': 192.962942, 'Hg': 201.970632, 'Au': 196.96656, 'Tl': 204.97441,
                      'Pb': 207.976641, 'Bi': 208.980388, 'Th': 232.038054, 'U': 238.050786,
-                     'H+': 1.0073}
+                     'H+': 1.0073, 'Ac': 43.01839, 'H2O': 18.01056, 'CH2': 14.02707,
+                     'Ala': 71.03711, 'Arg': 156.10111, 'Asn': 114.04293, 'Asp': 115.02694,
+                     'Cys': 103.00919, 'Glu': 129.04259, 'Gln': 128.05858, 'Gly': 57.02146,
+                     'His': 137.05891, 'Ile': 113.08406, 'Leu': 113.08406, 'Lys': 128.09496,
+                     'Met': 131.04049, 'Phe': 147.06841, 'Pro': 97.05276, 'Ser': 87.03203,
+                     'Thr': 101.04768, 'Trp': 186.07931, 'Tyr': 163.06333, 'Val': 99.06841}
     if element in atomic_masses:
         return atomic_masses[element]
 
@@ -104,6 +111,7 @@ def generate_formulas(element_string):
     elements = list(element_dict.keys())
 
     def backtrack(formula, current_element, mass):
+        """Recursively generate all possible formulas"""
         if current_element == len(elements):
             formulas[formula] = round(mass, 4)
             return
@@ -117,6 +125,9 @@ def generate_formulas(element_string):
             backtrack(updated_formula, current_element + 1, updated_mass)
 
     backtrack("", 0, 0.0)
+    # Sort the formulas dictionary with a lambda function that sorts by the mass
+    formulas = {formula: mass for formula, mass in sorted(formulas.items(), key=lambda item: item[1])}
+
     return formulas
 
 

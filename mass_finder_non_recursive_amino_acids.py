@@ -22,7 +22,7 @@ from platform import system
 
 
 
-def analyze_mass_spec(spectrum, mass_range, accuracy, formulas, min_intensity):
+def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
     # Convert arrays to numpy arrays
     mz_array = np.array(spectrum.get('m/z array', []))
     intensity_array = np.array(spectrum.get('intensity array', []))
@@ -35,8 +35,8 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas, min_intensity):
 
     for index, experimental_mass in enumerate(mz_array):
         if mass_range[0] <= experimental_mass <= mass_range[1] and intensity_array[index] >= min_intensity:
-                for formula in formulas:
-                    formula_mass = formulas[formula]
+                for formula in formulas_with_charge:
+                    formula_mass = formulas_with_charge[formula]
                     if abs(formula_mass - experimental_mass) < accuracy * experimental_mass:
                         matching_masses.append({
                             'index': index,
@@ -45,7 +45,7 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas, min_intensity):
                             'formula': formula,
                             'theoretical_mass': formula_mass
                         })
-                    # Assuming the formulas dictionary is organized from low to high mass
+                    # Assuming the formulas_with_charge dictionary is organized from low to high mass
                     if formula_mass > experimental_mass*(1+accuracy):
                         break
 
@@ -129,6 +129,28 @@ def generate_formulas(element_string):
     formulas = {formula: mass for formula, mass in sorted(formulas.items(), key=lambda item: item[1])}
 
     return formulas
+
+def generate_formula_with_charge(formulas):
+    formulas_with_charge = {}
+#find maximum and minimum charge states for each formula
+    for formula, mass in formulas.items():
+        min_charge, max_charge = calculate_charge_range(mass, lower_mass_limit, upper_mass_limit)
+
+        for charge in range(min_charge, max_charge + 1):
+            charge_state_mass = round((mass + (charge * 1.0073))/charge, 4)
+            if formula in formulas_with_charge:
+                formulas_with_charge[formula].append([charge, charge_state_mass])
+            else:
+                formulas_with_charge[formula] = [[charge, charge_state_mass]]
+
+    return formulas_with_charge
+
+def calculate_charge_range(mass, min_weight_cutoff, max_weight_cutoff):
+    min_charge = max(1, int((mass + max_weight_cutoff) / max_weight_cutoff))
+    max_charge = max(1, int((mass + min_weight_cutoff) / min_weight_cutoff)) - 1
+    print(min_charge, max_charge)
+
+    return min_charge, max_charge
 
 
 def append_suffix_to_file(file, overwrite):
@@ -280,9 +302,12 @@ def main():
 
     # Analyze for each file all spectra in parallel. Write output of each file to a txt
     pool = mp.Pool(args.threads)
-    formulas = generate_formulas(args.elements)
+    formulas_with_charge = generate_formula_with_charge(generate_formulas(args.elements))
     mass_range = [float(mass) for mass in args.mass_range.split('-')]
     time_range = [float(time) for time in args.time_range.split('-')]
+    mass_range_values = args.mass_range.split('-')
+    lower_mass_limit = float(mass_range_values[0])
+    upper_mass_limit = float(mass_range_values[1])
     nl = '\n\t\t'  # new line for f-strings
 
     for file in files:
@@ -290,7 +315,7 @@ def main():
         data = mzxml.MzXML(file, use_index=True)
         min_index, max_index = [int(data.time[float(time)]['id']) for time in time_range]
         analyzed_spectra = pool.starmap(analyze_mass_spec, [(data.get_by_index(int(index) - 1), mass_range,
-                                                             args.accuracy, formulas, args.min_intensity)
+                                                             args.accuracy, formulas_with_charge, args.min_intensity)
                                                             for index in range(min_index, max_index)])
         analyzed_spectra = [spectrum for spectrum in analyzed_spectra if spectrum is not None]
         sys.stdout.write(

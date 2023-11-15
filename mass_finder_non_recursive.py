@@ -228,7 +228,7 @@ def main():
                         type=str, default='0-1000')
     parser.add_argument('-mass_range',
                         help='Set a custom mass range to analyze in the mass spec data. Example: for m/z 200-600 , enter 200-600.',
-                        type=str, default='0-1000')
+                        type=str, default='0-2000')
     parser.add_argument('-output_folder',
                         help='Specify a specific output folder. If not specified, the output will be in the same folder as the mzxml files.',
                         type=str)

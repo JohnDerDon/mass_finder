@@ -36,18 +36,20 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
     for index, experimental_mass in enumerate(mz_array):
         if mass_range[0] <= experimental_mass <= mass_range[1] and intensity_array[index] >= min_intensity:
                 for formula in formulas_with_charge:
-                    formula_mass = formulas_with_charge[formula]
-                    if abs(formula_mass - experimental_mass) < accuracy * experimental_mass:
-                        matching_masses.append({
-                            'index': index,
-                            'intensity': round(intensity_array[index], 0),
-                            'experimental_mass': experimental_mass,
-                            'formula': formula,
-                            'theoretical_mass': formula_mass
-                        })
-                    # Assuming the formulas_with_charge dictionary is organized from low to high mass
-                    if formula_mass > experimental_mass*(1+accuracy):
-                        break
+                    formula_masses = formulas_with_charge[formula]
+                    for charge_mass in formula_masses:
+                        charge, formula_mass = charge_mass
+                        if abs(formula_mass - experimental_mass) < accuracy * experimental_mass:
+                            matching_masses.append({
+                                'index': index,
+                                'intensity': round(intensity_array[index], 0),
+                                'experimental_mass': experimental_mass,
+                                'formula': formula,
+                                'theoretical_mass': formula_mass
+                            })
+                            print(formula, formula_mass, charge, experimental_mass)
+                        # Assuming the formulas_with_charge dictionary is organized from low to high mass
+
 
     return (float(spectrum.get('retentionTime', 0)), matching_masses) if len(matching_masses) > 0 else None
 
@@ -113,7 +115,7 @@ def generate_formulas(element_string):
     def backtrack(formula, current_element, mass):
         """Recursively generate all possible formulas"""
         if current_element == len(elements):
-            formulas[formula] = round(mass, 4)
+            formulas[formula] = mass
             return
 
         element = elements[current_element]
@@ -130,11 +132,12 @@ def generate_formulas(element_string):
 
     return formulas
 
-def generate_formula_with_charge(formulas):
+def generate_formula_with_charge(formulas, mass_range):
     formulas_with_charge = {}
 #find maximum and minimum charge states for each formula
     for formula, mass in formulas.items():
-        min_charge, max_charge = calculate_charge_range(mass, lower_mass_limit, upper_mass_limit)
+        min_charge, max_charge = calculate_charge_range(mass, mass_range)
+        print(formula, mass, min_charge, max_charge)
 
         for charge in range(min_charge, max_charge + 1):
             charge_state_mass = round((mass + (charge * 1.0073))/charge, 4)
@@ -142,13 +145,13 @@ def generate_formula_with_charge(formulas):
                 formulas_with_charge[formula].append([charge, charge_state_mass])
             else:
                 formulas_with_charge[formula] = [[charge, charge_state_mass]]
+    print(formulas_with_charge)
 
     return formulas_with_charge
 
-def calculate_charge_range(mass, min_weight_cutoff, max_weight_cutoff):
-    min_charge = max(1, int((mass + max_weight_cutoff) / max_weight_cutoff))
-    max_charge = max(1, int((mass + min_weight_cutoff) / min_weight_cutoff)) - 1
-    print(min_charge, max_charge)
+def calculate_charge_range(mass, mass_range):
+    min_charge = max(1, int((mass + mass_range[1]) / mass_range[1]))
+    max_charge = max(1, int((mass + mass_range[0]) / mass_range[0])) - 1
 
     return min_charge, max_charge
 
@@ -302,12 +305,10 @@ def main():
 
     # Analyze for each file all spectra in parallel. Write output of each file to a txt
     pool = mp.Pool(args.threads)
-    formulas_with_charge = generate_formula_with_charge(generate_formulas(args.elements))
     mass_range = [float(mass) for mass in args.mass_range.split('-')]
     time_range = [float(time) for time in args.time_range.split('-')]
-    mass_range_values = args.mass_range.split('-')
-    lower_mass_limit = float(mass_range_values[0])
-    upper_mass_limit = float(mass_range_values[1])
+    formulas_with_charge = generate_formula_with_charge(generate_formulas(args.elements), mass_range)
+
     nl = '\n\t\t'  # new line for f-strings
 
     for file in files:

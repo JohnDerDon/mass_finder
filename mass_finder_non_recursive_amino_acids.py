@@ -262,7 +262,7 @@ def main():
     parser.add_argument('-output_folder',
                         help='Specify a specific output folder. If not specified, the output will be in the same folder as the mzxml files.',
                         type=str)
-    parser.add_argument('-output_prefix', help='Prefix to the output files', default=None, type=str)
+    parser.add_argument('-output_prefix', help='Prefix to the output files', default='', type=str)
     parser.add_argument('-overwrite',
                         help='If overwrite is True, the data saved from previous runs will be overwritten.',
                         action='store_true')

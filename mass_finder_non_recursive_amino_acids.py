@@ -47,7 +47,7 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
                                 'formula': formula,
                                 'theoretical_mass': formula_mass
                             })
-                            print(formula, formula_mass, charge, experimental_mass)
+                            #print(formula, formula_mass, charge, experimental_mass)
                         # Assuming the formulas_with_charge dictionary is organized from low to high mass
 
 

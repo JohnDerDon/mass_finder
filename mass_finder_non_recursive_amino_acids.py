@@ -85,6 +85,17 @@ def find_atomic_mass(element):
         return atomic_masses[element]
 
 
+def find_amino_acid_mass(amino_acid):
+    # Dictionary with elemental masses
+    amino_acid_masses = {'A': 71.03711, 'R': 156.10111, 'N': 114.04293, 'D': 115.02694,
+                         'C': 103.00919, 'E': 129.04259, 'Q': 128.05858, 'G': 57.02146,
+                         'H': 137.05891, 'I': 113.08406, 'L': 113.08406, 'K': 128.09496,
+                         'M': 131.04049, 'F': 147.06841, 'P': 97.05276, 'S': 87.03203,
+                         'T': 101.04768, 'W': 186.07931, 'Y': 163.06333, 'V': 99.06841}
+    if amino_acid in amino_acid_masses:
+        return amino_acid_masses[amino_acid]
+
+
 def construct_element_dictionary(element_string):
     # Construct the element dictionary
     if element_string is None:
@@ -97,13 +108,23 @@ def construct_element_dictionary(element_string):
         min_count = int(parts[0])
         max_count = int(parts[2])
         identifier = parts[1]
+        # check if there is a custom mass
         if ':' in identifier:
             identifier_parts = identifier.split(':')
             mass = float(identifier_parts[1])
             identifier = identifier_parts[0]
+        # check if there is a peptide input sequence
+        elif all(char in "ACDEFGHIKLMNPQRSTVWY" for char in identifier) and len(identifier) > 1:
+            peptide = list(identifier)
+            # start with H2O mass to account for N- and C- terminus
+            mass = 18.01056
+            for amino_acid in peptide:
+                amino_acid_mass = find_amino_acid_mass(amino_acid)
+                mass += amino_acid_mass
+        # get all atomic masses
         else:
             mass = find_atomic_mass(identifier)
-        element_dictionary[identifier] = [min_count, max_count, mass]
+        element_dictionary[identifier] = [min_count, max_count, round(mass, 4)]
     return element_dictionary
 
 

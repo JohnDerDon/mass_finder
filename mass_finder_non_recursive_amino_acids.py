@@ -21,7 +21,6 @@ import numpy as np
 from platform import system
 
 
-
 def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
     # Convert arrays to numpy arrays
     mz_array = np.array(spectrum.get('m/z array', []))
@@ -47,9 +46,8 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
                                 'formula': formula,
                                 'theoretical_mass': formula_mass
                             })
-                            #print(formula, formula_mass, charge, experimental_mass)
+                            # print(formula, formula_mass, charge, experimental_mass)
                         # Assuming the formulas_with_charge dictionary is organized from low to high mass
-
 
     return (float(spectrum.get('retentionTime', 0)), matching_masses) if len(matching_masses) > 0 else None
 
@@ -86,6 +84,7 @@ def find_atomic_mass(element):
     if element in atomic_masses:
         return atomic_masses[element]
 
+
 def construct_element_dictionary(element_string):
     # Construct the element dictionary
     if element_string is None:
@@ -106,6 +105,7 @@ def construct_element_dictionary(element_string):
             mass = find_atomic_mass(identifier)
         element_dictionary[identifier] = [min_count, max_count, mass]
     return element_dictionary
+
 
 def generate_formulas(element_string):
     formulas = {}
@@ -132,9 +132,10 @@ def generate_formulas(element_string):
 
     return formulas
 
+
 def generate_formula_with_charge(formulas, mass_range):
     formulas_with_charge = {}
-#find maximum and minimum charge states for each formula
+# find maximum and minimum charge states for each formula
     for formula, mass in formulas.items():
         min_charge, max_charge = calculate_charge_range(mass, mass_range)
         print(formula, mass, min_charge, max_charge)
@@ -148,6 +149,7 @@ def generate_formula_with_charge(formulas, mass_range):
     print(formulas_with_charge)
 
     return formulas_with_charge
+
 
 def calculate_charge_range(mass, mass_range):
     min_charge = max(1, int((mass + mass_range[1]) / mass_range[1]))

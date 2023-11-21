@@ -374,12 +374,12 @@ def main():
                     output_file.write(
                         f"\tExperimental Mass: {peak['experimental_mass']}\tIntensity: {peak['intensity']}\tFormula: {peak['formula']}\tTheoretical mass: {peak['theoretical_mass']}\tCharge state: {peak['charge_state']}" + "\n")
         if args.full_range:
-            plot_time_range = [int(data.time[float(time)]['retentionTime']) for time in [0, 1000]]
+            plot_time_range = [round(float(data.time[float(time)]['retentionTime']),2) for time in args.plot_time_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
             plot_results_in_2D(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
                                args.overwrite, args.full_range)
         else:
-            plot_time_range = [int(data.time[float(time)]['retentionTime']) for time in args.plot_time_range.split('-')]
+            plot_time_range = [round(float(data.time[float(time)]['retentionTime']), 2) for time in args.plot_time_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
             plot_results_in_2D(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
                                args.overwrite, args.full_range)

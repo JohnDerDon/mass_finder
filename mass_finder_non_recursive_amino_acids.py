@@ -44,7 +44,8 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
                                 'intensity': round(intensity_array[index], 0),
                                 'experimental_mass': experimental_mass,
                                 'formula': formula,
-                                'theoretical_mass': formula_mass
+                                'theoretical_mass': formula_mass,
+                                'charge_state': charge
                             })
                             # print(formula, formula_mass, charge, experimental_mass)
                         # Assuming the formulas_with_charge dictionary is organized from low to high mass
@@ -367,7 +368,7 @@ def main():
                 output_file.write(f"Found matching mass at {retention_time} min:\n")
                 for peak in spectrum:
                     output_file.write(
-                        f"\tExperimental Mass: {peak['experimental_mass']}\tIntensity: {peak['intensity']}\tFormula: {peak['formula']}\tTheoretical mass: {peak['theoretical_mass']}" + "\n")
+                        f"\tExperimental Mass: {peak['experimental_mass']}\tIntensity: {peak['intensity']}\tFormula: {peak['formula']}\tTheoretical mass: {peak['theoretical_mass']}\tCharge state: {peak['charge_state']}" + "\n")
         if args.full_range:
             plot_time_range = [int(data.time[float(time)]['retentionTime']) for time in [0, 1000]]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]

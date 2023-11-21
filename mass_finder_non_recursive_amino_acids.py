@@ -117,8 +117,7 @@ def construct_element_dictionary(element_string):
         # check if there is a peptide input sequence
         elif all(char in "ACDEFGHIKLMNPQRSTVWY" for char in identifier) and len(identifier) > 1:
             peptide = list(identifier)
-            # start with H2O mass to account for N- and C- terminus
-            mass = 18.01056
+            mass = 0
             for amino_acid in peptide:
                 amino_acid_mass = find_amino_acid_mass(amino_acid)
                 mass += amino_acid_mass

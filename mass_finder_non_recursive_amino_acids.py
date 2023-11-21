@@ -206,6 +206,11 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
     plot_list = pd.DataFrame(plot_list, columns=['experimental_mass', 'time', 'intensity'])
     plot_list = plot_list.sort_values(by='intensity', ascending=True, ignore_index=True)
 
+    # Check if plot_list is empty
+    if plot_list.empty:
+        sys.stdout.write(f"Nothing to plot. The plot list is empty.\n")
+        return
+
     # Define the plot
     zrange = [power for power in range(floor(min(plot_list['intensity'])), ceil(max(plot_list['intensity'])))]
     plt.figure(figsize=(12, 10))

@@ -154,15 +154,20 @@ def generate_formulas(element_string):
     return formulas
 
 
-def generate_formula_with_charge(formulas, mass_range):
+def generate_formula_with_charge(formulas, mass_range, monoisotopic):
     formulas_with_charge = {}
 # find maximum and minimum charge states for each formula
     for formula, mass in formulas.items():
         min_charge, max_charge = calculate_charge_range(mass, mass_range)
+        isotope_peak_number = int(mass / 1500)
         print(formula, mass, min_charge, max_charge)
 
         for charge in range(min_charge, max_charge + 1):
-            charge_state_mass = round((mass + (charge * 1.0073))/charge, 4)
+            if monoisotopic:
+                charge_state_mass = round((mass + (charge * 1.0073)) / charge, 4)
+            else:
+                # calculate the number of the most abundant 13C isotope peak, empirically determined to change at 1500 Da
+                charge_state_mass = round((mass + (charge * 1.0073) + (1.003354835 * isotope_peak_number)) / charge, 4)
             if formula in formulas_with_charge:
                 formulas_with_charge[formula].append([charge, charge_state_mass])
             else:
@@ -297,6 +302,9 @@ def main():
     parser.add_argument('-full_range',
                         help='If full_range is True, the output plot will span the entire time and mass range. Useful for comparing samples, but less ideal to check a single file. Default: False',
                         action='store_true')
+    parser.add_argument('-monoisotopic',
+                        help='If full_range is True, the output plot will span the entire time and mass range. Useful for comparing samples, but less ideal to check a single file. Default: False',
+                        action='store_true')
     parser.add_argument('-plot_time_range', help='Time range to use for plotting', default='0-30', type=str)
     parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='200-2000', type=str)
 
@@ -335,7 +343,7 @@ def main():
     pool = mp.Pool(args.threads)
     mass_range = [float(mass) for mass in args.mass_range.split('-')]
     time_range = [float(time) for time in args.time_range.split('-')]
-    formulas_with_charge = generate_formula_with_charge(generate_formulas(args.elements), mass_range)
+    formulas_with_charge = generate_formula_with_charge(generate_formulas(args.elements), mass_range, args.monoisotopic)
 
     nl = '\n\t\t'  # new line for f-strings
 

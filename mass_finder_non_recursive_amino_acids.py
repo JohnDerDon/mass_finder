@@ -279,7 +279,7 @@ def main():
     parser = argparse.ArgumentParser(description='Check an xml files in a folder for a specific isotope pattern.')
     parser.add_argument('-input', help='Input folder or file')
     parser.add_argument('-threads', help='Number of threads to use', type=int, default=1)
-    parser.add_argument('-min_intensity', help='Minimal intensity of main peak to report', type=float, default=1e4)
+    parser.add_argument('-min_intensity', help='Minimal intensity of main peak to report', type=float, default=1e5)
     parser.add_argument('-elements',
                         help='Define the boundaries for elemental composition. Input format [minimal number]-[element]-[maximal number]_[next element]. E.g. "2-C-10_2-N-5_0-H-20]". For custom masses, such as between 1 and 2 phenols, add 1-phenol:94.0419-2.',
                         type=str, default=None)

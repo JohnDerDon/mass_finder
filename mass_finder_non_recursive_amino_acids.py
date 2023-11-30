@@ -280,7 +280,7 @@ def main():
                         type=str, default=None)
     parser.add_argument('-accuracy',
                         help='Tolerance of relative mass difference between measured and predicted masses. Default = 5e-6.',
-                        type=float, default=1e-5)
+                        type=float, default=5e-6)
     parser.add_argument('-time_range',
                         help='Set a custom time range to analyze in the mass spec data. Example: for 3-10 minutes, enter 3-10.',
                         type=str, default='0-1000')

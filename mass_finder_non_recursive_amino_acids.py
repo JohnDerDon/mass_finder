@@ -240,12 +240,13 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
     cbar.ax.tick_params(labelsize=14)
 
     # Save the plot
-    if any([os.path.isfile(output_file + '.svg'), os.path.isfile(output_file + '.png')]) and overwrite:
-        suffix = 1
-        while any([os.path.isfile(output_file + '_' + str(suffix) + '.svg'),
-                   os.path.isfile(output_file + '_' + str(suffix) + '.png')]):
-            suffix += 1
-        output_file = f"{output_file}_{suffix}"
+    if overwrite == False:
+        if any([os.path.isfile(output_file + '.svg'), os.path.isfile(output_file + '.png')]):
+            suffix = 1
+            while any([os.path.isfile(output_file + '_' + str(suffix) + '.svg'),
+                       os.path.isfile(output_file + '_' + str(suffix) + '.png')]):
+                suffix += 1
+            output_file = f"{output_file}_{suffix}"
     plt.savefig(output_file + '.svg', transparent=True, dpi=300)
     plt.savefig(output_file + '.png', transparent=True, dpi=300)
 

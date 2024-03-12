@@ -159,6 +159,7 @@ def generate_formula_with_charge(formulas, mass_range, monoisotopic):
 # find maximum and minimum charge states for each formula
     for formula, mass in formulas.items():
         min_charge, max_charge = calculate_charge_range(mass, mass_range)
+        # calculate the number of the most abundant 13C isotope peak, empirically determined to change at 1500 Da
         isotope_peak_number = int(mass / 1500)
         print(formula, mass, min_charge, max_charge)
 
@@ -166,7 +167,7 @@ def generate_formula_with_charge(formulas, mass_range, monoisotopic):
             if monoisotopic:
                 charge_state_mass = round((mass + (charge * 1.0073)) / charge, 4)
             else:
-                # calculate the number of the most abundant 13C isotope peak, empirically determined to change at 1500 Da
+                # calculate the mass of the most abundant 13C isotope peak, empirically determined to change at 1500 Da
                 charge_state_mass = round((mass + (charge * 1.0073) + (1.003354835 * isotope_peak_number)) / charge, 4)
             if formula in formulas_with_charge:
                 formulas_with_charge[formula].append([charge, charge_state_mass])

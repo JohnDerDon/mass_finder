@@ -19,7 +19,8 @@ from math import ceil, floor
 from collections import defaultdict
 import numpy as np
 from platform import system
-
+import matplotlib.ticker as ticker
+import matplotlib.patches as mpatches
 
 def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
     # Convert arrays to numpy arrays
@@ -199,16 +200,17 @@ def append_suffix_to_file(file, overwrite):
         return file
 
 
-def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range):
+def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range, min_intensity):
     # Plot the analyzed spectra in a single graph
+    log_min_intensity = log10(min_intensity)
     plot_list = list()
     for spectrum in [spectrum for spectrum in analyzed_spectra if spectrum is not None]:
         time = spectrum[0]
         for peak in spectrum[1:]:
             peaks = [value for value in peak]
             for peak in peaks:
-                plot_list.append([peak['experimental_mass'], time, log10(peak['intensity'])])
-    plot_list = pd.DataFrame(plot_list, columns=['experimental_mass', 'time', 'intensity'])
+                plot_list.append([peak['experimental_mass'], time, log10(peak['intensity']), peak['formula']])
+    plot_list = pd.DataFrame(plot_list, columns=['experimental_mass', 'time', 'intensity', 'formula'])
     plot_list = plot_list.sort_values(by='intensity', ascending=True, ignore_index=True)
 
     # Check if plot_list is empty
@@ -216,29 +218,57 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
         sys.stdout.write(f"Nothing to plot. The plot list is empty.\n")
         return
 
+    # Determine unique identifiers
+    unique_identifiers = plot_list['formula'].unique()
+    num_identifiers = len(unique_identifiers)
+
+    # Generate a custom colormap with a varying number of colors
+    colors = plt.cm.rainbow(np.linspace(0, 1, num_identifiers))
+
     # Define the plot
-    zrange = [power for power in range(floor(min(plot_list['intensity'])), ceil(max(plot_list['intensity'])))]
     plt.figure(figsize=(12, 10))
     plt.title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
-    plot = plt.scatter(plot_list['time'], plot_list['experimental_mass'], c=plot_list['intensity'],
-                       marker='.',
-                       cmap=cmocean.cm.rain,
-                       vmin=zrange[0], vmax=zrange[-1])
+    for i, identifier in enumerate(unique_identifiers):
+        indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
+        color = colors[i]
+        for j in indices:
+            alpha = (plot_list.at[j, 'intensity'] - log_min_intensity + 1) / plot_list['intensity'].max()  # Normalize z value for shading
+            plt.scatter(plot_list.at[j, 'time'], plot_list.at[j, 'experimental_mass'],
+                        marker='.', edgecolors='none', color=color, alpha=alpha, label=f'{identifier}')
+
+    # label specifications
     plt.xlabel('Time (min)', fontsize=18)
     plt.ylabel('m/z', fontsize=18)
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
+
+    # check if full_range is true, otherwise adapt range
     if full_range:
         plt.xlim((min(time_range), max(time_range)))
         plt.ylim((min(mass_range), max(mass_range)))
     else:
         plt.xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
         plt.ylim((0.9 * min(plot_list['experimental_mass']), 1.1 * max(plot_list['experimental_mass'])))
+
     plt.grid(which='both', alpha=0.3)
-    cbar = plt.colorbar(plot, shrink=0.5)
+
+    # Create a ScalarMappable object for the intensity values
+    alpha_sm = plt.cm.ScalarMappable(cmap=plt.cm.gray_r, norm=plt.Normalize(vmin=log_min_intensity, vmax=plot_list['intensity'].max()))
+    alpha_sm.set_array([])  # Setting an empty array
+
+    # Add a color bar representing intensity values
+    cbar = plt.colorbar(alpha_sm, shrink=0.5, ax=plt.gca())
     cbar.ax.set_ylabel('log(intensity)', rotation=270, labelpad=20, fontsize=18)
-    cbar.set_ticks(zrange)
     cbar.ax.tick_params(labelsize=14)
+
+    # Set ticks on the colorbar with increments of 1
+    cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
+
+    # Create legend with custom font color
+    patches = []
+    for i, identifier in enumerate(unique_identifiers):
+        patches.append(mpatches.Patch(color=colors[i], label=identifier))
+    plt.legend(handles=patches, fontsize='large')
 
     # Save the plot
     if overwrite == False:
@@ -250,30 +280,6 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
             output_file = f"{output_file}_{suffix}"
     plt.savefig(output_file + '.svg', transparent=True, dpi=300)
     plt.savefig(output_file + '.png', transparent=True, dpi=300)
-
-
-def clean_formula(formula):
-    # Remove the parts in the chemical formula that have coefficient 0 and clean
-    # the formula
-    elements = formula.split('_')
-    clean_formula = list()
-    chemical_groups = ['C2H4', 'C2H2', 'CH2', 'NH3', 'O']
-    for element in elements:
-        # Check if the last value is 0, not 10/20.. and not a custom element
-        if element[-1] == '0' and not ':' in element:
-            if element[-2].isdigit() and not any([alkyl in element[-2 - len(alkyl):-1] for alkyl in chemical_groups]):
-                pass
-            else:
-                continue
-        else:
-            clean_formula.append(element)
-    customs = [element for element in clean_formula if ':' in element]
-    adducts = [element for element in clean_formula if '+' in element]
-    chemical_groups = [element for element in clean_formula if any([moiety in element for moiety in chemical_groups])]
-    remainder = sorted([element for element in clean_formula if
-                        not any([element in adducts, element in customs, element in chemical_groups])])
-    clean_formula = customs + remainder + chemical_groups + adducts
-    return '_'.join(clean_formula)
 
 
 def main():
@@ -387,12 +393,12 @@ def main():
             plot_time_range = [round(float(data.time[float(time)]['retentionTime']),2) for time in args.plot_time_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
             plot_results_in_2D(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
-                               args.overwrite, args.full_range)
+                               args.overwrite, args.full_range, args.min_intensity)
         else:
             plot_time_range = [round(float(data.time[float(time)]['retentionTime']), 2) for time in args.plot_time_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
             plot_results_in_2D(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
-                               args.overwrite, args.full_range)
+                               args.overwrite, args.full_range, args.min_intensity)
     pool.close()
 
 

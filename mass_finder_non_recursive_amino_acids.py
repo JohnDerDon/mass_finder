@@ -146,7 +146,12 @@ def generate_formulas(element_string):
         for count in range(min_count, max_count + 1):
             updated_formula = f"{formula}{element}{count}"
             updated_mass = mass + (element_mass * count)
-            backtrack(updated_formula, current_element + 1, updated_mass)
+            # If the count is non-zero, proceed recursively
+            if count > 0:
+                backtrack(updated_formula, current_element + 1, updated_mass)
+            else:
+                # If the count is zero, proceed without adding the element
+                backtrack(formula, current_element + 1, mass)
 
     backtrack("", 0, 0.0)
     # Sort the formulas dictionary with a lambda function that sorts by the mass

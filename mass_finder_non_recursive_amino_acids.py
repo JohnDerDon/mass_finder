@@ -24,8 +24,11 @@ import matplotlib.patches as mpatches
 
 def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
     # Convert arrays to numpy arrays
-    mz_array = np.array(spectrum.get('m/z array', []))
-    intensity_array = np.array(spectrum.get('intensity array', []))
+    if spectrum.get('msLevel', 0) == 1:  # Check if the spectrum is MS1
+        mz_array = np.array(spectrum.get('m/z array', []))
+        intensity_array = np.array(spectrum.get('intensity array', []))
+    else:
+        return None
 
     # Check if arrays are empty
     if mz_array.size == 0 or intensity_array.size == 0:
@@ -237,7 +240,7 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
         indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
         color = colors[i]
         for j in indices:
-            alpha = (plot_list.at[j, 'intensity'] - log_min_intensity + 1) / plot_list['intensity'].max()  # Normalize z value for shading
+            alpha = (plot_list.at[j, 'intensity'] - log_min_intensity) / (plot_list['intensity'].max() - log_min_intensity)  # Normalize z value for shading
             plt.scatter(plot_list.at[j, 'time'], plot_list.at[j, 'experimental_mass'],
                         marker='.', edgecolors='none', color=color, alpha=alpha, label=f'{identifier}')
 

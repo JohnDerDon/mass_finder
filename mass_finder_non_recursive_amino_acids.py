@@ -13,7 +13,6 @@ import argparse
 import multiprocess as mp
 import pandas as pd
 import matplotlib.pyplot as plt
-import cmocean
 from numpy import log10
 from math import ceil, floor
 from collections import defaultdict

@@ -20,6 +20,7 @@ import numpy as np
 from platform import system
 import matplotlib.ticker as ticker
 import matplotlib.patches as mpatches
+from pyteomics import mass as pymass
 
 def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
     # Convert arrays to numpy arrays
@@ -56,50 +57,6 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
     return (float(spectrum.get('retentionTime', 0)), matching_masses) if len(matching_masses) > 0 else None
 
 
-def find_atomic_mass(element):
-    # Dictionary with elemental masses
-    atomic_masses = {'H': 1.007825, 'He': 4.002603, 'Li': 7.016005, 'Be': 9.012183,
-                     'B': 11.009305, 'C': 12.0, 'N': 14.003074, 'O': 15.994915,
-                     'F': 18.998403, 'Ne': 19.992439, 'Na': 22.98977, 'Mg': 23.985045,
-                     'Al': 26.981541, 'Si': 27.976928, 'P': 30.973763, 'S': 31.972072,
-                     'Cl': 34.968853, 'Ar': 39.962383, 'K': 38.963708, 'Ca': 39.962591,
-                     'Sc': 44.955914, 'Ti': 47.947947, 'Cr': 51.94051, 'V': 50.943963,
-                     'Fe': 55.934939, 'Mn': 54.938046, 'Ni': 57.935347, 'Co': 58.933198,
-                     'Cu': 62.929599, 'Zn': 63.929145, 'Ga': 68.925581, 'Ge': 73.921179,
-                     'Se': 79.916521, 'As': 74.921596, 'Kr': 83.911506, 'Br': 78.918336,
-                     'Sr': 87.905625, 'Rb': 84.9118, 'Y': 88.905856, 'Zr': 89.904708,
-                     'Mo': 97.905405, 'Nb': 92.906378, 'Ru': 101.904348, 'Pd': 105.903475,
-                     'Rh': 102.905503, 'Cd': 113.903361, 'Ag': 106.905095, 'Sn': 119.902199,
-                     'In': 114.903875, 'Te': 129.906229, 'Sb': 120.903824, 'Xe': 131.904148,
-                     'X': 125.904281, 'I': 126.904477, 'Ba': 137.905236, 'Cs': 132.905433,
-                     'Ce': 139.905442, 'La': 138.906355, 'Pr': 140.907657, 'Nd': 141.907731,
-                     'Sm': 151.919741, 'Eu': 152.921243, 'Gd': 157.924111, 'Dy': 163.929183,
-                     'Tb': 158.92535, 'Er': 165.930305, 'Ho': 164.930332, 'Yb': 173.938873,
-                     'Tm': 168.934225, 'Hf': 179.946561, 'Lu': 174.940785, 'W': 183.950953,
-                     'Ta': 180.948014, 'Os': 191.961487, 'Re': 186.955765, 'Pt': 194.964785,
-                     'Ir': 192.962942, 'Hg': 201.970632, 'Au': 196.96656, 'Tl': 204.97441,
-                     'Pb': 207.976641, 'Bi': 208.980388, 'Th': 232.038054, 'U': 238.050786,
-                     'H+': 1.00728, 'Ac': 42.01056, 'H2O': 18.01056, 'CH2': 14.01565, 'CH1': 13.00703,
-                     'Ala': 71.03711, 'Arg': 156.10111, 'Asn': 114.04293, 'Asp': 115.02694,
-                     'Cys': 103.00919, 'Glu': 129.04259, 'Gln': 128.05858, 'Gly': 57.02146,
-                     'His': 137.05891, 'Ile': 113.08406, 'Leu': 113.08406, 'Lys': 128.09496,
-                     'Met': 131.04049, 'Phe': 147.06841, 'Pro': 97.05276, 'Ser': 87.03203,
-                     'Thr': 101.04768, 'Trp': 186.07931, 'Tyr': 163.06333, 'Val': 99.06841}
-    if element in atomic_masses:
-        return atomic_masses[element]
-
-
-def find_amino_acid_mass(amino_acid):
-    # Dictionary with elemental masses
-    amino_acid_masses = {'A': 71.03711, 'R': 156.10111, 'N': 114.04293, 'D': 115.02694,
-                         'C': 103.00919, 'E': 129.04259, 'Q': 128.05858, 'G': 57.02146,
-                         'H': 137.05891, 'I': 113.08406, 'L': 113.08406, 'K': 128.09496,
-                         'M': 131.04049, 'F': 147.06841, 'P': 97.05276, 'S': 87.03203,
-                         'T': 101.04768, 'W': 186.07931, 'Y': 163.06333, 'V': 99.06841}
-    if amino_acid in amino_acid_masses:
-        return amino_acid_masses[amino_acid]
-
-
 def construct_element_dictionary(element_string):
     # Construct the element dictionary
     if element_string is None:
@@ -119,14 +76,13 @@ def construct_element_dictionary(element_string):
             identifier = identifier_parts[0]
         # check if there is a peptide input sequence
         elif all(char in "ACDEFGHIKLMNPQRSTVWY" for char in identifier) and len(identifier) > 1:
-            peptide = list(identifier)
-            mass = 0
-            for amino_acid in peptide:
-                amino_acid_mass = find_amino_acid_mass(amino_acid)
-                mass += amino_acid_mass
+            peptide = identifier
+            # peptide mass minus H2O for concatenation of different peptide stretches
+            mass = pymass.calculate_mass(sequence=peptide) - pymass.calculate_mass(formula='H2O')
         # get all atomic masses
         else:
-            mass = find_atomic_mass(identifier)
+            # get the mass of the chemical formula
+            mass = pymass.calculate_mass(formula=identifier)
         element_dictionary[identifier] = [min_count, max_count, round(mass, 4)]
     return element_dictionary
 

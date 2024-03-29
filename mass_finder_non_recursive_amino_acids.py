@@ -164,7 +164,7 @@ def append_suffix_to_file(file, overwrite):
         return file
 
 
-def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range, min_intensity):
+def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range, min_intensity, group_identifiers):
     # Plot the analyzed spectra in a single graph
     log_min_intensity = log10(min_intensity)
     plot_list = list()
@@ -191,7 +191,19 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
     num_identifiers = len(sorted_unique_identifiers)
 
     # Generate a custom colormap with a varying number of colors
-    colors = plt.cm.rainbow(np.linspace(0, 1, num_identifiers))
+    # check if the number of identifiers is divisible by the number of group identifiers
+    if num_identifiers % group_identifiers != 0:
+        raise ValueError('The number of identifiers must be divisible by the number of similar groups')
+    # calculate the number of groups
+    num_groups = num_identifiers // group_identifiers
+
+    colors = np.array([]).reshape(0, 4)
+    # Generate a list of colors using the tab20 colormap based on the number of unique identifiers
+    for i in range(num_groups):
+        for j in range(group_identifiers):
+            color_distribution = ((i + 1 / group_identifiers) / num_groups + j / (
+                        2 * (num_groups + group_identifiers)))
+            colors = np.append(colors, [plt.cm.rainbow(color_distribution)], axis=0)
 
     # Define the plot
     plt.figure(figsize=(12, 10))
@@ -239,7 +251,7 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
     plt.legend(handles=patches, fontsize='large')
 
     # Save the plot
-    if overwrite == False:
+    if not overwrite:
         if any([os.path.isfile(output_file + '.svg'), os.path.isfile(output_file + '.png')]):
             suffix = 1
             while any([os.path.isfile(output_file + '_' + str(suffix) + '.svg'),
@@ -283,6 +295,7 @@ def main():
                         action='store_true')
     parser.add_argument('-plot_time_range', help='Time range to use for plotting', default='0-30', type=str)
     parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='200-2000', type=str)
+    parser.add_argument('-plot_group_identifiers', help='Group similar identifiers in the plot with similar colors', default=1, type=int)
 
     args = parser.parse_args()
 
@@ -361,12 +374,12 @@ def main():
             plot_time_range = [round(float(data.time[float(time)]['retentionTime']),2) for time in args.plot_time_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
             plot_results_in_2D(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
-                               args.overwrite, args.full_range, args.min_intensity)
+                               args.overwrite, args.full_range, args.min_intensity, args.plot_group_identifiers)
         else:
             plot_time_range = [round(float(data.time[float(time)]['retentionTime']), 2) for time in args.plot_time_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
             plot_results_in_2D(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
-                               args.overwrite, args.full_range, args.min_intensity)
+                               args.overwrite, args.full_range, args.min_intensity, args.plot_group_identifiers)
     pool.close()
 
 

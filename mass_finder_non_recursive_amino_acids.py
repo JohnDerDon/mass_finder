@@ -49,7 +49,8 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
                                 'experimental_mass': experimental_mass,
                                 'formula': formula,
                                 'theoretical_mass': formula_mass,
-                                'charge_state': charge
+                                'charge_state': charge,
+                                'parent_mass': formula_mass * charge - charge * 1.0073
                             })
                             # print(formula, formula_mass, charge, experimental_mass)
                         # Assuming the formulas_with_charge dictionary is organized from low to high mass
@@ -77,7 +78,7 @@ def construct_element_dictionary(element_string):
         # check if there is a peptide input sequence
         elif all(char in "ACDEFGHIKLMNPQRSTVWY" for char in identifier) and len(identifier) > 1:
             peptide = identifier
-            # peptide mass minus H2O for concatenation of different peptide stretches
+            # peptide mass minus H2O for concatenation of different peptide stretches. 1 H2O must be added in the command line.
             mass = pymass.calculate_mass(sequence=peptide) - pymass.calculate_mass(formula='H2O')
         # get all atomic masses
         else:
@@ -172,8 +173,9 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
         for peak in spectrum[1:]:
             peaks = [value for value in peak]
             for peak in peaks:
-                plot_list.append([peak['experimental_mass'], time, log10(peak['intensity']), peak['formula']])
-    plot_list = pd.DataFrame(plot_list, columns=['experimental_mass', 'time', 'intensity', 'formula'])
+                plot_list.append([peak['experimental_mass'], time, log10(peak['intensity']),
+                                  peak['formula'], peak['parent_mass']])
+    plot_list = pd.DataFrame(plot_list, columns=['experimental_mass', 'time', 'intensity', 'formula', 'parent_mass'])
     plot_list = plot_list.sort_values(by='intensity', ascending=True, ignore_index=True)
 
     # Check if plot_list is empty
@@ -181,9 +183,12 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
         sys.stdout.write(f"Nothing to plot. The plot list is empty.\n")
         return
 
-    # Determine unique identifiers
-    unique_identifiers = plot_list['formula'].unique()
-    num_identifiers = len(unique_identifiers)
+    # Create a DataFrame with identifiers and their corresponding parent masses sorted by parent mass
+    sorted_df = plot_list[['formula', 'parent_mass']].sort_values(by='parent_mass')
+    # Get the sorted unique identifiers as a list
+    sorted_unique_identifiers = sorted_df['formula'].drop_duplicates().tolist()
+
+    num_identifiers = len(sorted_unique_identifiers)
 
     # Generate a custom colormap with a varying number of colors
     colors = plt.cm.rainbow(np.linspace(0, 1, num_identifiers))
@@ -191,7 +196,7 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
     # Define the plot
     plt.figure(figsize=(12, 10))
     plt.title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
-    for i, identifier in enumerate(unique_identifiers):
+    for i, identifier in enumerate(sorted_unique_identifiers):
         indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
         color = colors[i]
         for j in indices:
@@ -229,7 +234,7 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
 
     # Create legend with custom font color
     patches = []
-    for i, identifier in enumerate(unique_identifiers):
+    for i, identifier in enumerate(sorted_unique_identifiers):
         patches.append(mpatches.Patch(color=colors[i], label=identifier))
     plt.legend(handles=patches, fontsize='large')
 

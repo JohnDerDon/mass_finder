@@ -23,6 +23,7 @@ import matplotlib.patches as mpatches
 from pyteomics import mass as pymass
 from scipy import constants
 
+
 def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
     # Convert arrays to numpy arrays
     if spectrum.get('msLevel', 0) == 1:  # Check if the spectrum is MS1

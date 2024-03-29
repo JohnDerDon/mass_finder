@@ -21,6 +21,7 @@ from platform import system
 import matplotlib.ticker as ticker
 import matplotlib.patches as mpatches
 from pyteomics import mass as pymass
+from scipy import constants
 
 def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
     # Convert arrays to numpy arrays
@@ -35,13 +36,16 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
         return None
 
     matching_masses = []
+    mass_proton_kilo = constants.physical_constants['proton mass'][0]
+    kilo_in_dalton = constants.physical_constants['atomic mass unit-kilogram relationship'][0]
+    mass_proton = mass_proton_kilo / kilo_in_dalton
 
     for index, experimental_mass in enumerate(mz_array):
         if mass_range[0] <= experimental_mass <= mass_range[1] and intensity_array[index] >= min_intensity:
                 for formula in formulas_with_charge:
                     formula_masses = formulas_with_charge[formula]
                     for charge_mass in formula_masses:
-                        charge, formula_mass = charge_mass
+                        charge, formula_mass, isotope_peak_number = charge_mass
                         if abs(formula_mass - experimental_mass) < accuracy * experimental_mass:
                             matching_masses.append({
                                 'index': index,
@@ -50,7 +54,8 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
                                 'formula': formula,
                                 'theoretical_mass': formula_mass,
                                 'charge_state': charge,
-                                'parent_mass': formula_mass * charge - charge * 1.0073
+                                'isotope_peak_number': isotope_peak_number,
+                                'parent_mass': formula_mass * charge - charge * mass_proton
                             })
                             # print(formula, formula_mass, charge, experimental_mass)
                         # Assuming the formulas_with_charge dictionary is organized from low to high mass
@@ -64,6 +69,7 @@ def construct_element_dictionary(element_string):
         return None
     element_dictionary = {}
     elements = element_string.split('_')
+    relative_abundance_13C = pymass.nist_mass['C'][13][1]  # Approximately 1.07% in nature from pymass
     for element in elements:
         parts = element.split('-')
         assert len(parts) == 3
@@ -75,16 +81,23 @@ def construct_element_dictionary(element_string):
             identifier_parts = identifier.split(':')
             mass = float(identifier_parts[1])
             identifier = identifier_parts[0]
+            isotope_count = mass/1500  # approximate value for isotopologues in custom mass
         # check if there is a peptide input sequence
         elif all(char in "ACDEFGHIKLMNPQRSTVWY" for char in identifier) and len(identifier) > 1:
             peptide = identifier
             # peptide mass minus H2O for concatenation of different peptide stretches. 1 H2O must be added in the command line.
             mass = pymass.calculate_mass(sequence=peptide) - pymass.calculate_mass(formula='H2O')
+            # get the 13C isotope count of the peptide
+            num_carbon_atoms = pymass.Composition(identifier).get('C', 0)
+            isotope_count = relative_abundance_13C * num_carbon_atoms
         # get all atomic masses
         else:
             # get the mass of the chemical formula
             mass = pymass.calculate_mass(formula=identifier)
-        element_dictionary[identifier] = [min_count, max_count, round(mass, 4)]
+            # get the 13C isotope count of the chemical formula
+            num_carbon_atoms = pymass.Composition(identifier).get('C', 0)
+            isotope_count = relative_abundance_13C * num_carbon_atoms
+        element_dictionary[identifier] = [min_count, max_count, round(mass, 4), round(isotope_count, 4)]
     return element_dictionary
 
 
@@ -93,50 +106,58 @@ def generate_formulas(element_string):
     element_dict = construct_element_dictionary(element_string)
     elements = list(element_dict.keys())
 
-    def backtrack(formula, current_element, mass):
+    def backtrack(formula, current_element, mass, isotope_count):
         """Recursively generate all possible formulas"""
         if current_element == len(elements):
-            formulas[formula] = mass
+            formulas[formula] = (mass, isotope_count)
             return
 
         element = elements[current_element]
-        min_count, max_count, element_mass = element_dict[element]
+        min_count, max_count, element_mass, element_isotope_count = element_dict[element]
 
         for count in range(min_count, max_count + 1):
             updated_formula = f"{formula}{element}{count}"
             updated_mass = mass + (element_mass * count)
+            updated_isotope_count = isotope_count + (element_isotope_count * count)
             # If the count is non-zero, proceed recursively
             if count > 0:
-                backtrack(updated_formula, current_element + 1, updated_mass)
+                backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count)
             else:
                 # If the count is zero, proceed without adding the element
-                backtrack(formula, current_element + 1, mass)
+                backtrack(formula, current_element + 1, mass, isotope_count)
 
-    backtrack("", 0, 0.0)
+    backtrack("", 0, 0.0, 0.0)
     # Sort the formulas dictionary with a lambda function that sorts by the mass
-    formulas = {formula: mass for formula, mass in sorted(formulas.items(), key=lambda item: item[1])}
+    formulas = {formula: (mass, isotope_count) for formula, (mass, isotope_count) in sorted(formulas.items(), key=lambda item: item[1][0])}
 
     return formulas
 
 
 def generate_formula_with_charge(formulas, mass_range, monoisotopic):
     formulas_with_charge = {}
-# find maximum and minimum charge states for each formula
-    for formula, mass in formulas.items():
+
+    # calculate the masses of a proton and a neutron for the isotope peak calculation
+    mass_proton_kilo = constants.physical_constants['proton mass'][0]
+    kilo_in_dalton = constants.physical_constants['atomic mass unit-kilogram relationship'][0]
+    mass_proton = mass_proton_kilo / kilo_in_dalton
+    mass_neutron = pymass.nist_mass['C'][13][0] - pymass.nist_mass['C'][12][0]
+
+    # find maximum and minimum charge states for each formula
+    for formula, (mass, isotope_count) in formulas.items():
         min_charge, max_charge = calculate_charge_range(mass, mass_range)
-        # calculate the number of the most abundant 13C isotope peak, empirically determined to change at 1500 Da
-        isotope_peak_number = int(mass / 1500)
+        # calculate the number of the most abundant 13C isotope peak with the values of the isotope count
+        isotope_peak_number = round(isotope_count)
 
         for charge in range(min_charge, max_charge + 1):
             if monoisotopic:
-                charge_state_mass = round((mass + (charge * 1.0073)) / charge, 4)
+                charge_state_mass = round((mass + (charge * mass_proton)) / charge, 4)
             else:
                 # calculate the mass of the most abundant 13C isotope peak, empirically determined to change at 1500 Da
-                charge_state_mass = round((mass + (charge * 1.0073) + (1.003354835 * isotope_peak_number)) / charge, 4)
+                charge_state_mass = round((mass + (charge * mass_proton) + (mass_neutron * isotope_peak_number)) / charge, 4)
             if formula in formulas_with_charge:
-                formulas_with_charge[formula].append([charge, charge_state_mass])
+                formulas_with_charge[formula].append([charge, charge_state_mass, isotope_peak_number])
             else:
-                formulas_with_charge[formula] = [[charge, charge_state_mass]]
+                formulas_with_charge[formula] = [[charge, charge_state_mass, isotope_peak_number]]
 
     return formulas_with_charge
 
@@ -367,7 +388,7 @@ def main():
                 output_file.write(f"Found matching mass at {retention_time} min:\n")
                 for peak in spectrum:
                     output_file.write(
-                        f"\tExperimental Mass: {peak['experimental_mass']}\tIntensity: {peak['intensity']}\tFormula: {peak['formula']}\tTheoretical mass: {peak['theoretical_mass']}\tCharge state: {peak['charge_state']}" + "\n")
+                        f"\tExperimental Mass: {peak['experimental_mass']}\tIntensity: {peak['intensity']}\tFormula: {peak['formula']}\tTheoretical mass: {peak['theoretical_mass']}\tParent mass: {peak['parent_mass']}\tCharge state: {peak['charge_state']}\tIsotope peak number: {peak['isotope_peak_number']}" + "\n")
         if args.full_range:
             plot_time_range = [round(float(data.time[float(time)]['retentionTime']),2) for time in args.plot_time_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]

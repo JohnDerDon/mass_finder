@@ -184,7 +184,7 @@ def append_suffix_to_file(file, overwrite):
         return file
 
 
-def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range, min_intensity, group_identifiers):
+def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range, min_intensity, group_identifiers):
     # Plot the analyzed spectra in a single graph
     log_min_intensity = log10(min_intensity)
     plot_list = list()
@@ -196,7 +196,7 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
                 plot_list.append([peak['experimental_mass'], time, log10(peak['intensity']),
                                   peak['formula'], peak['parent_mass']])
     plot_list = pd.DataFrame(plot_list, columns=['experimental_mass', 'time', 'intensity', 'formula', 'parent_mass'])
-    plot_list = plot_list.sort_values(by='intensity', ascending=True, ignore_index=True)
+    plot_list = plot_list.sort_values(by='time', ascending=True, ignore_index=True)
 
     # Check if plot_list is empty
     if plot_list.empty:
@@ -225,6 +225,21 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
                         2 * (num_groups + group_identifiers)))
             colors = np.append(colors, [plt.cm.rainbow(color_distribution)], axis=0)
 
+    suffix = ''
+    if not overwrite:
+        if any([os.path.isfile(output_file + '_scatter.svg'), os.path.isfile(output_file + '_XIC.svg')]):
+            suffix = 1
+            while any([os.path.isfile(output_file + '_' + str(suffix) + '_scatter.svg'), os.path.isfile(output_file + '_' + str(suffix) + '_XIC.svg')]):
+                suffix += 1
+
+    # Plot the scatter plot
+    plot_scatter(plot_list, output_file, time_range, mass_range, full_range, sorted_unique_identifiers, colors, log_min_intensity, suffix)
+    # Plot the extracted ion chromatograms
+    plot_XIC(plot_list, output_file, time_range, full_range, sorted_unique_identifiers, colors, suffix, min_intensity)
+
+
+def plot_scatter(plot_list, output_file, time_range, mass_range,
+                 full_range, sorted_unique_identifiers, colors, log_min_intensity, suffix):
     # Define the plot
     plt.figure(figsize=(12, 10))
     plt.title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
@@ -268,18 +283,62 @@ def plot_results_in_2D(analyzed_spectra, output_file, time_range, mass_range, ov
     patches = []
     for i, identifier in enumerate(sorted_unique_identifiers):
         patches.append(mpatches.Patch(color=colors[i], label=identifier))
-    plt.legend(handles=patches, fontsize='large')
+    plt.legend(handles=patches, fontsize='large', loc='upper right')
 
     # Save the plot
-    if not overwrite:
-        if any([os.path.isfile(output_file + '.svg'), os.path.isfile(output_file + '.png')]):
-            suffix = 1
-            while any([os.path.isfile(output_file + '_' + str(suffix) + '.svg'),
-                       os.path.isfile(output_file + '_' + str(suffix) + '.png')]):
-                suffix += 1
-            output_file = f"{output_file}_{suffix}"
-    plt.savefig(output_file + '.svg', transparent=True, dpi=300)
-    plt.savefig(output_file + '.png', transparent=True, dpi=300)
+    output_file = f"{output_file}_{suffix}"
+    plt.savefig(output_file + 'scatter.svg', transparent=True, dpi=300)
+    plt.close()
+
+
+def plot_XIC(plot_list, output_file, time_range,
+                 full_range, sorted_unique_identifiers, colors, suffix, min_intensity):
+
+    max_values = plot_list.groupby('formula')['intensity'].max()  # Get the maximum intensity for each identifier
+    max_values_sorted = max_values.sort_values(ascending=False)
+    # Create a zorder for the identifiers based on their maximum intensity
+    identifier_zorder = {identifier: i for i, identifier in enumerate(max_values_sorted.index)}
+
+    # Define the plot
+    plt.figure(figsize=(12, 10))
+    plt.title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
+    for i, identifier in enumerate(sorted_unique_identifiers):
+        indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
+        color = colors[i]
+        times = [time_range[0]]
+        intensities = [min_intensity]
+        for j in indices:
+            times.append(plot_list.at[j, 'time'])
+            intensities.append(round(np.power(10, plot_list.at[j, 'intensity'])))
+        times.append(time_range[1])
+        intensities.append(min_intensity)
+
+        plt.plot(times, intensities, color=color, linewidth=1, label=f'{identifier}', zorder=identifier_zorder[identifier])
+
+    # label specifications
+    plt.xlabel('Time (min)', fontsize=18)
+    plt.ylabel('Intensity', fontsize=18)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+
+    # check if full_range is true, otherwise adapt range
+    if full_range:
+        plt.xlim((min(time_range), max(time_range)))
+    else:
+        plt.xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
+
+    plt.grid(which='both', alpha=0.3)
+
+    # Create legend with custom font color
+    patches = []
+    for i, identifier in enumerate(sorted_unique_identifiers):
+        patches.append(mpatches.Patch(color=colors[i], label=identifier))
+    plt.legend(handles=patches, fontsize='large', loc='upper right')
+
+    # Save the plot
+    output_file = f"{output_file}_{suffix}"
+    plt.savefig(output_file + 'XIC.svg', transparent=True, dpi=300)
+    plt.close()
 
 
 def main():
@@ -393,14 +452,15 @@ def main():
         if args.full_range:
             plot_time_range = [round(float(data.time[float(time)]['retentionTime']),2) for time in args.plot_time_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
-            plot_results_in_2D(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
+            plot_results(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
                                args.overwrite, args.full_range, args.min_intensity, args.plot_group_identifiers)
         else:
             plot_time_range = [round(float(data.time[float(time)]['retentionTime']), 2) for time in args.plot_time_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
-            plot_results_in_2D(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
+            plot_results(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
                                args.overwrite, args.full_range, args.min_intensity, args.plot_group_identifiers)
     pool.close()
+
 
 
 if __name__ == '__main__':

@@ -184,6 +184,30 @@ def append_suffix_to_file(file, overwrite):
         return file
 
 
+def relative_abundances(plot_list):
+    """
+    Calculate the relative abundances of each formula based on the sum of intensities.
+
+    Parameters:
+        df (DataFrame): DataFrame with 'formula' and 'intensity' columns.
+
+    Returns:
+        dict: Dictionary containing the relative abundances of each formula.
+    """
+    # Group by 'formula' and sum the 'intensity' within each group
+    sum_intensities = plot_list.groupby('formula')['intensity'].sum()
+
+    # Calculate the total intensity
+    total_intensity = sum_intensities.sum()
+
+    # Calculate the relative abundances for each formula
+    relative_abundances = {formula: intensity / total_intensity for formula, intensity in sum_intensities.items()}
+    print(relative_abundances)
+
+    return relative_abundances
+
+
+
 def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range, min_intensity, group_identifiers):
     # Plot the analyzed spectra in a single graph
     log_min_intensity = log10(min_intensity)

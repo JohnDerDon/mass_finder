@@ -202,7 +202,6 @@ def relative_abundances(plot_list):
 
     # Calculate the relative abundances for each formula
     relative_abundances = {formula: intensity / total_intensity for formula, intensity in sum_intensities.items()}
-    print(relative_abundances)
 
     return relative_abundances
 
@@ -266,38 +265,40 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
 def plot_scatter(plot_list, output_file, time_range, mass_range,
                  full_range, sorted_unique_identifiers, colors, log_min_intensity, suffix):
     # Define the plot
-    plt.figure(figsize=(12, 10))
-    plt.title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
+    fig, (ax_abundance, ax_main) = plt.subplots(1, 2, figsize=(16, 10), gridspec_kw={'width_ratios': [1, 6]})
+
+    # plot the scatter plot on the main axes
+    ax_main.set_title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
     for i, identifier in enumerate(sorted_unique_identifiers):
         indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
         color = colors[i]
         for j in indices:
-            alpha = (plot_list.at[j, 'intensity_log10'] - log_min_intensity) / (plot_list['intensity_log10'].max() - log_min_intensity)  # Normalize z value for shading
-            plt.scatter(plot_list.at[j, 'time'], plot_list.at[j, 'experimental_mass'],
-                        marker='.', edgecolors='none', color=color, alpha=alpha, label=f'{identifier}')
+            alpha = ((plot_list.at[j, 'intensity_log10'] - log_min_intensity) /
+                     (plot_list['intensity_log10'].max() - log_min_intensity))  # Normalize z value for shading
+            ax_main.scatter(plot_list.at[j, 'time'], plot_list.at[j, 'experimental_mass'],
+                            marker='.', edgecolors='none', color=color, alpha=alpha, label=f'{identifier}')
 
     # label specifications
-    plt.xlabel('Time (min)', fontsize=18)
-    plt.ylabel('m/z', fontsize=18)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    ax_main.set_xlabel('Time (min)', fontsize=18)
+    ax_main.set_ylabel('m/z', fontsize=18)
+    ax_main.tick_params(axis='both', which='major', labelsize=14)
 
     # check if full_range is true, otherwise adapt range
     if full_range:
-        plt.xlim((min(time_range), max(time_range)))
-        plt.ylim((min(mass_range), max(mass_range)))
+        ax_main.set_xlim((min(time_range), max(time_range)))
+        ax_main.set_ylim((min(mass_range), max(mass_range)))
     else:
-        plt.xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
-        plt.ylim((0.9 * min(plot_list['experimental_mass']), 1.1 * max(plot_list['experimental_mass'])))
+        ax_main.set_xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
+        ax_main.set_ylim((0.9 * min(plot_list['experimental_mass']), 1.1 * max(plot_list['experimental_mass'])))
 
-    plt.grid(which='both', alpha=0.3)
+    ax_main.grid(which='both', alpha=0.3)
 
     # Create a ScalarMappable object for the intensity values
     alpha_sm = plt.cm.ScalarMappable(cmap=plt.cm.gray_r, norm=plt.Normalize(vmin=log_min_intensity, vmax=plot_list['intensity_log10'].max()))
     alpha_sm.set_array([])  # Setting an empty array
 
     # Add a color bar representing intensity values
-    cbar = plt.colorbar(alpha_sm, shrink=0.5, ax=plt.gca())
+    cbar = plt.colorbar(alpha_sm, shrink=0.5, ax=ax_main)
     cbar.ax.set_ylabel('log(intensity)', rotation=270, labelpad=20, fontsize=18)
     cbar.ax.tick_params(labelsize=14)
 
@@ -308,7 +309,29 @@ def plot_scatter(plot_list, output_file, time_range, mass_range,
     patches = []
     for i, identifier in enumerate(sorted_unique_identifiers):
         patches.append(mpatches.Patch(color=colors[i], label=identifier))
-    plt.legend(handles=patches, fontsize='large', loc='upper right')
+    ax_main.legend(handles=patches, fontsize='large', loc='upper right')
+    
+    # define the abundance plot on the abundance axis
+    abundances = relative_abundances(plot_list)
+
+    # Combine all intensities into a single array for stacking
+    stacked_intensities = [abundances[sorted_unique_identifiers[0]]]
+    for i in range(len(sorted_unique_identifiers)-1):
+        formula2 = sorted_unique_identifiers[i+1]
+        stacked_intensity = stacked_intensities[i] + abundances[formula2]
+        stacked_intensities.append(stacked_intensity)
+
+    #reverse the order of the intensities & the colors for the stacked bar plot
+    stacked_intensities = stacked_intensities[::-1]
+    colors = colors[::-1]
+
+    # Plot a stacked bar in reverse order
+    ax_abundance.bar(0, stacked_intensities, align='center', color=colors)
+
+    ax_abundance.set_xticks([])  # Hide x-axis ticks
+    ax_abundance.tick_params(axis='y', which='major', labelsize=14)
+    ax_abundance.set_ylabel('Relative Abundance', fontsize=18)
+    
 
     # Save the plot
     output_file = f"{output_file}_{suffix}"
@@ -318,15 +341,16 @@ def plot_scatter(plot_list, output_file, time_range, mass_range,
 
 def plot_XIC(plot_list, output_file, time_range,
                  full_range, sorted_unique_identifiers, colors, suffix, min_intensity):
+    # Define the plot
+    fig, (ax_abundance, ax_main) = plt.subplots(1, 2, figsize=(16, 10), gridspec_kw={'width_ratios': [1, 6]})
 
     max_values = plot_list.groupby('formula')['intensity'].max()  # Get the maximum intensity for each identifier
     max_values_sorted = max_values.sort_values(ascending=False)
     # Create a zorder for the identifiers based on their maximum intensity
     identifier_zorder = {identifier: i for i, identifier in enumerate(max_values_sorted.index)}
 
-    # Define the plot
-    plt.figure(figsize=(12, 10))
-    plt.title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
+    # Define the XIC main plot
+    ax_main.set_title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
     for i, identifier in enumerate(sorted_unique_identifiers):
         indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
         color = colors[i]
@@ -338,27 +362,47 @@ def plot_XIC(plot_list, output_file, time_range,
         times.append(time_range[1])
         intensities.append(min_intensity)
 
-        plt.plot(times, intensities, color=color, linewidth=1, label=f'{identifier}', zorder=identifier_zorder[identifier])
+        ax_main.plot(times, intensities, color=color, linewidth=1, label=f'{identifier}', zorder=identifier_zorder[identifier])
 
     # label specifications
-    plt.xlabel('Time (min)', fontsize=18)
-    plt.ylabel('Intensity', fontsize=18)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    ax_main.set_xlabel('Time (min)', fontsize=18)
+    ax_main.set_ylabel('Intensity', fontsize=18)
+    ax_main.tick_params(axis='both', which='major', labelsize=14)
 
     # check if full_range is true, otherwise adapt range
     if full_range:
-        plt.xlim((min(time_range), max(time_range)))
+        ax_main.set_xlim((min(time_range), max(time_range)))
     else:
-        plt.xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
+        ax_main.set_xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
 
-    plt.grid(which='both', alpha=0.3)
+    ax_main.grid(which='both', alpha=0.3)
 
     # Create legend with custom font color
     patches = []
     for i, identifier in enumerate(sorted_unique_identifiers):
         patches.append(mpatches.Patch(color=colors[i], label=identifier))
-    plt.legend(handles=patches, fontsize='large', loc='upper right')
+    ax_main.legend(handles=patches, fontsize='large', loc='upper right')
+
+    # define the abundance plot on the abundance axis
+    abundances = relative_abundances(plot_list)
+
+    # Combine all intensities into a single array for stacking
+    stacked_intensities = [abundances[sorted_unique_identifiers[0]]]
+    for i in range(len(sorted_unique_identifiers)-1):
+        formula2 = sorted_unique_identifiers[i+1]
+        stacked_intensity = stacked_intensities[i] + abundances[formula2]
+        stacked_intensities.append(stacked_intensity)
+
+    #reverse the order of the intensities & the colors for the stacked bar plot
+    stacked_intensities = stacked_intensities[::-1]
+    colors = colors[::-1]
+
+    # Plot a stacked bar in reverse order
+    ax_abundance.bar(0, stacked_intensities, align='center', color=colors)
+
+    ax_abundance.set_xticks([])  # Hide x-axis ticks
+    ax_abundance.tick_params(axis='y', which='major', labelsize=14)
+    ax_abundance.set_ylabel('Relative Abundance', fontsize=18)
 
     # Save the plot
     output_file = f"{output_file}_{suffix}"

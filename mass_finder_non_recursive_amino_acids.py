@@ -185,6 +185,26 @@ def append_suffix_to_file(file, overwrite):
         return file
 
 
+def generate_plot_list(analyzed_spectra):
+    plot_list = list()
+    for spectrum in [spectrum for spectrum in analyzed_spectra if spectrum is not None]:
+        time = spectrum[0]
+        for peak in spectrum[1:]:
+            peaks = [value for value in peak]
+            for peak in peaks:
+                plot_list.append([peak['experimental_mass'], time, peak['intensity'], log10(peak['intensity']),
+                                  peak['formula'], peak['parent_mass']])
+    plot_list = pd.DataFrame(plot_list, columns=['experimental_mass', 'time', 'intensity', 'intensity_log10',
+                                                 'formula', 'parent_mass'])
+    plot_list = plot_list.sort_values(by='time', ascending=True, ignore_index=True)
+
+    if plot_list.empty:
+        sys.stdout.write(f"Nothing to plot. The plot list is empty.\n")
+        return None
+
+    return plot_list
+
+
 def relative_abundances(plot_list):
     """
     Calculate the relative abundances of each formula based on the sum of intensities.
@@ -210,23 +230,11 @@ def relative_abundances(plot_list):
 
 def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range, min_intensity, group_identifiers):
     # Plot the analyzed spectra in a single graph
-    log_min_intensity = log10(min_intensity)
-    plot_list = list()
-    for spectrum in [spectrum for spectrum in analyzed_spectra if spectrum is not None]:
-        time = spectrum[0]
-        for peak in spectrum[1:]:
-            peaks = [value for value in peak]
-            for peak in peaks:
-                plot_list.append([peak['experimental_mass'], time, peak['intensity'], log10(peak['intensity']),
-                                  peak['formula'], peak['parent_mass']])
-    plot_list = pd.DataFrame(plot_list, columns=['experimental_mass', 'time', 'intensity', 'intensity_log10',
-                                                 'formula', 'parent_mass'])
-    plot_list = plot_list.sort_values(by='time', ascending=True, ignore_index=True)
 
-    # Check if plot_list is empty
-    if plot_list.empty:
-        sys.stdout.write(f"Nothing to plot. The plot list is empty.\n")
-        return
+    # calculate the logarithm of the minimal intensity
+    log_min_intensity = log10(min_intensity)
+    # calculate the plot list
+    plot_list = generate_plot_list(analyzed_spectra)
 
     # Create a DataFrame with identifiers and their corresponding parent masses sorted by parent mass
     sorted_df = plot_list[['formula', 'parent_mass']].sort_values(by='parent_mass')
@@ -510,7 +518,11 @@ def main():
             output_file.write(
                 f"Mass range; {mass_range}\nTime range: {time_range}\n\n")
             output_file.write(
-                f"Found {sum([len(spectrum[1]) for spectrum in analyzed_spectra if spectrum != None])} matching masses in {file}\n")
+                f"Relative abundances of the different formulas:\n")
+            for formula, abundance in relative_abundances(generate_plot_list(analyzed_spectra)).items():
+                output_file.write(f"\t{formula}:\t {abundance}\n")
+            output_file.write(
+                f"\nFound {sum([len(spectrum[1]) for spectrum in analyzed_spectra if spectrum != None])} matching masses in {file}\n")
 
             for retention_time, spectrum in analyzed_spectra:
                 if retention_time is None:

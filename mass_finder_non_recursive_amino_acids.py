@@ -22,6 +22,7 @@ import matplotlib.ticker as ticker
 import matplotlib.patches as mpatches
 from pyteomics import mass as pymass
 from scipy import constants
+from textwrap import wrap
 
 
 def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
@@ -256,72 +257,56 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
             while any([os.path.isfile(output_file + '_' + str(suffix) + '_scatter.svg'), os.path.isfile(output_file + '_' + str(suffix) + '_XIC.svg')]):
                 suffix += 1
 
-    # Plot the scatter plot
-    plot_scatter(plot_list, output_file, time_range, mass_range, full_range, sorted_unique_identifiers, colors, log_min_intensity, suffix)
-    # Plot the extracted ion chromatograms
-    plot_XIC(plot_list, output_file, time_range, full_range, sorted_unique_identifiers, colors, suffix, min_intensity)
+    # Plot the results
+    plot_results_subplots(plot_list, output_file, time_range, mass_range, full_range, sorted_unique_identifiers, colors,
+                          log_min_intensity, suffix, min_intensity)
 
 
-def plot_scatter(plot_list, output_file, time_range, mass_range,
-                 full_range, sorted_unique_identifiers, colors, log_min_intensity, suffix):
+def plot_results_subplots(plot_list, output_file, time_range, mass_range,
+                          full_range, sorted_unique_identifiers, colors, log_min_intensity, suffix, min_intensity):
     # Define the plot
-    fig, (ax_abundance, ax_main) = plt.subplots(1, 2, figsize=(16, 10), gridspec_kw={'width_ratios': [1, 6]})
+    fig = plt.figure(figsize=(16, 16))
+    # Define the title of the plot
+    fig.suptitle(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
 
-    # plot the scatter plot on the main axes
-    ax_main.set_title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
-    for i, identifier in enumerate(sorted_unique_identifiers):
-        indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
-        color = colors[i]
-        for j in indices:
-            alpha = ((plot_list.at[j, 'intensity_log10'] - log_min_intensity) /
-                     (plot_list['intensity_log10'].max() - log_min_intensity))  # Normalize z value for shading
-            ax_main.scatter(plot_list.at[j, 'time'], plot_list.at[j, 'experimental_mass'],
-                            marker='.', edgecolors='none', color=color, alpha=alpha, label=f'{identifier}')
+    # Create a grid for the subplots
+    gs = fig.add_gridspec(2, 5, width_ratios=[2, 1, 12, 2, 2], height_ratios=[1, 1])
+    ax_abundance = fig.add_subplot(gs[0:, 0])
+    ax_XIC = fig.add_subplot(gs[0, 2])
+    ax_scatter = fig.add_subplot(gs[1, 2])
+    ax_colorbar = fig.add_subplot(gs[1, 3])
+    ax_colorbar.axis('off')
+    ax_legend = fig.add_subplot(gs[0, 3:])
+    ax_legend.axis('off')
 
-    # label specifications
-    ax_main.set_xlabel('Time (min)', fontsize=18)
-    ax_main.set_ylabel('m/z', fontsize=18)
-    ax_main.tick_params(axis='both', which='major', labelsize=14)
+    # Plot the stacked bar
+    plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors, relative_abundances)
 
-    # check if full_range is true, otherwise adapt range
-    if full_range:
-        ax_main.set_xlim((min(time_range), max(time_range)))
-        ax_main.set_ylim((min(mass_range), max(mass_range)))
-    else:
-        ax_main.set_xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
-        ax_main.set_ylim((0.9 * min(plot_list['experimental_mass']), 1.1 * max(plot_list['experimental_mass'])))
+    # Plot the XIC
+    plot_XIC(ax_XIC, plot_list, time_range, sorted_unique_identifiers, colors, min_intensity, ax_legend)
 
-    ax_main.grid(which='both', alpha=0.3)
+    # Plot the scatter plot
+    plot_scatter(ax_scatter, plot_list, time_range, mass_range, full_range, sorted_unique_identifiers,
+                 colors, log_min_intensity, ax_colorbar)
 
-    # Create a ScalarMappable object for the intensity values
-    alpha_sm = plt.cm.ScalarMappable(cmap=plt.cm.gray_r, norm=plt.Normalize(vmin=log_min_intensity, vmax=plot_list['intensity_log10'].max()))
-    alpha_sm.set_array([])  # Setting an empty array
+    # Save the plot
+    output_file = f"{output_file}_{suffix}"
+    plt.savefig(output_file + '.svg', transparent=True, dpi=300)
+    plt.close()
 
-    # Add a color bar representing intensity values
-    cbar = plt.colorbar(alpha_sm, shrink=0.5, ax=ax_main)
-    cbar.ax.set_ylabel('log(intensity)', rotation=270, labelpad=20, fontsize=18)
-    cbar.ax.tick_params(labelsize=14)
 
-    # Set ticks on the colorbar with increments of 1
-    cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
-
-    # Create legend with custom font color
-    patches = []
-    for i, identifier in enumerate(sorted_unique_identifiers):
-        patches.append(mpatches.Patch(color=colors[i], label=identifier))
-    ax_main.legend(handles=patches, fontsize='large', loc='upper right')
-    
-    # define the abundance plot on the abundance axis
+def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors, relative_abundances):
+    # Define the abundance plot on the abundance axis
     abundances = relative_abundances(plot_list)
 
     # Combine all intensities into a single array for stacking
     stacked_intensities = [abundances[sorted_unique_identifiers[0]]]
-    for i in range(len(sorted_unique_identifiers)-1):
-        formula2 = sorted_unique_identifiers[i+1]
+    for i in range(len(sorted_unique_identifiers) - 1):
+        formula2 = sorted_unique_identifiers[i + 1]
         stacked_intensity = stacked_intensities[i] + abundances[formula2]
         stacked_intensities.append(stacked_intensity)
 
-    #reverse the order of the intensities & the colors for the stacked bar plot
+    # Reverse the order of the intensities & the colors for the stacked bar plot
     stacked_intensities = stacked_intensities[::-1]
     colors = colors[::-1]
 
@@ -331,18 +316,51 @@ def plot_scatter(plot_list, output_file, time_range, mass_range,
     ax_abundance.set_xticks([])  # Hide x-axis ticks
     ax_abundance.tick_params(axis='y', which='major', labelsize=14)
     ax_abundance.set_ylabel('Relative Abundance', fontsize=18)
-    
-
-    # Save the plot
-    output_file = f"{output_file}_{suffix}"
-    plt.savefig(output_file + 'scatter.svg', transparent=True, dpi=300)
-    plt.close()
 
 
-def plot_XIC(plot_list, output_file, time_range,
-                 full_range, sorted_unique_identifiers, colors, suffix, min_intensity):
-    # Define the plot
-    fig, (ax_abundance, ax_main) = plt.subplots(1, 2, figsize=(16, 10), gridspec_kw={'width_ratios': [1, 6]})
+def plot_scatter(ax_scatter, plot_list, time_range, mass_range,
+                 full_range, sorted_unique_identifiers, colors, log_min_intensity, ax_colorbar):
+
+    # plot the scatter plot on the main axes
+    for i, identifier in enumerate(sorted_unique_identifiers):
+        indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
+        color = colors[i]
+        for j in indices:
+            alpha = ((plot_list.at[j, 'intensity_log10'] - log_min_intensity) /
+                     (plot_list['intensity_log10'].max() - log_min_intensity))  # Normalize z value for shading
+            ax_scatter.scatter(plot_list.at[j, 'time'], plot_list.at[j, 'experimental_mass'],
+                            marker='.', edgecolors='none', color=color, alpha=alpha, label=f'{identifier}')
+
+    # label specifications
+    ax_scatter.set_xlabel('Time (min)', fontsize=18)
+    ax_scatter.set_ylabel('m/z', fontsize=18)
+    ax_scatter.tick_params(axis='both', which='major', labelsize=14)
+
+    # check if full_range is true, otherwise adapt range
+    if full_range:
+        ax_scatter.set_xlim((min(time_range), max(time_range)))
+        ax_scatter.set_ylim((min(mass_range), max(mass_range)))
+    else:
+        ax_scatter.set_xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
+        ax_scatter.set_ylim((0.9 * min(plot_list['experimental_mass']), 1.1 * max(plot_list['experimental_mass'])))
+
+    ax_scatter.grid(which='both', alpha=0.3)
+
+    # Create a ScalarMappable object for the intensity values
+    alpha_sm = plt.cm.ScalarMappable(cmap=plt.cm.gray_r, norm=plt.Normalize(vmin=log_min_intensity, vmax=plot_list['intensity_log10'].max()))
+    alpha_sm.set_array([])  # Setting an empty array
+
+    # Add a color bar representing intensity values shifted to the left of the plot
+    cbar = plt.colorbar(alpha_sm, ax=ax_colorbar,  orientation='vertical')
+    cbar.ax.set_ylabel('log(intensity)', rotation=270, labelpad=20, fontsize=18)
+    cbar.ax.tick_params(labelsize=14)
+
+    # Set ticks on the colorbar with increments of 1
+    cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
+
+
+def plot_XIC(ax_XIC, plot_list, time_range,
+                 sorted_unique_identifiers, colors, min_intensity, ax_legend):
 
     max_values = plot_list.groupby('formula')['intensity'].max()  # Get the maximum intensity for each identifier
     max_values_sorted = max_values.sort_values(ascending=False)
@@ -350,7 +368,6 @@ def plot_XIC(plot_list, output_file, time_range,
     identifier_zorder = {identifier: i for i, identifier in enumerate(max_values_sorted.index)}
 
     # Define the XIC main plot
-    ax_main.set_title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
     # Create a dictionary to store intensity values for each time point and identifier
     time_intensity_map = defaultdict(dict)
 
@@ -378,52 +395,20 @@ def plot_XIC(plot_list, output_file, time_range,
         intensities.insert(0, min_intensity)
         intensities.append(min_intensity)
 
-        ax_main.plot(times, intensities, color=color, linewidth=1.5, label=f'{identifier}', zorder=identifier_zorder[identifier])
+        ax_XIC.plot(times, intensities, color=color, linewidth=1.5, label=f'{identifier}', zorder=identifier_zorder[identifier])
 
     # label specifications
-    ax_main.set_xlabel('Time (min)', fontsize=18)
-    ax_main.set_ylabel('Intensity', fontsize=18)
-    ax_main.tick_params(axis='both', which='major', labelsize=14)
+    ax_XIC.set_xlabel('Time (min)', fontsize=18)
+    ax_XIC.set_ylabel('Intensity', fontsize=18)
+    ax_XIC.tick_params(axis='both', which='major', labelsize=14)
 
-    # check if full_range is true, otherwise adapt range
-    if full_range:
-        ax_main.set_xlim((min(time_range), max(time_range)))
-    else:
-        ax_main.set_xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
-
-    ax_main.grid(which='both', alpha=0.3)
+    ax_XIC.grid(which='both', alpha=0.3)
 
     # Create legend with custom font color
     patches = []
     for i, identifier in enumerate(sorted_unique_identifiers):
-        patches.append(mpatches.Patch(color=colors[i], label=identifier))
-    ax_main.legend(handles=patches, fontsize='large', loc='upper right')
-
-    # define the abundance plot on the abundance axis
-    abundances = relative_abundances(plot_list)
-
-    # Combine all intensities into a single array for stacking
-    stacked_intensities = [abundances[sorted_unique_identifiers[0]]]
-    for i in range(len(sorted_unique_identifiers)-1):
-        formula2 = sorted_unique_identifiers[i+1]
-        stacked_intensity = stacked_intensities[i] + abundances[formula2]
-        stacked_intensities.append(stacked_intensity)
-
-    #reverse the order of the intensities & the colors for the stacked bar plot
-    stacked_intensities = stacked_intensities[::-1]
-    colors = colors[::-1]
-
-    # Plot a stacked bar in reverse order
-    ax_abundance.bar(0, stacked_intensities, align='center', color=colors)
-
-    ax_abundance.set_xticks([])  # Hide x-axis ticks
-    ax_abundance.tick_params(axis='y', which='major', labelsize=14)
-    ax_abundance.set_ylabel('Relative Abundance', fontsize=18)
-
-    # Save the plot
-    output_file = f"{output_file}_{suffix}"
-    plt.savefig(output_file + 'XIC.svg', transparent=True, dpi=300)
-    plt.close()
+        patches.append(mpatches.Patch(color=colors[i], label='\n'.join(wrap(identifier, 25))))
+    ax_legend.legend(handles=patches, fontsize='large', loc='upper left')
 
 
 def main():

@@ -351,18 +351,34 @@ def plot_XIC(plot_list, output_file, time_range,
 
     # Define the XIC main plot
     ax_main.set_title(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
+    # Create a dictionary to store intensity values for each time point and identifier
+    time_intensity_map = defaultdict(dict)
+
+    # Iterate through each identifier
     for i, identifier in enumerate(sorted_unique_identifiers):
         indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
         color = colors[i]
-        times = [time_range[0]]
-        intensities = [min_intensity]
+
+        # Iterate through each index corresponding to the current identifier
         for j in indices:
-            times.append(plot_list.at[j, 'time'])
-            intensities.append(plot_list.at[j, 'intensity'])
+            time_point = plot_list.at[j, 'time']
+            intensity = plot_list.at[j, 'intensity']
+
+            # If the time point already exists for the current identifier, add intensity to existing value
+            if time_point in time_intensity_map[identifier]:
+                time_intensity_map[identifier][time_point] += intensity
+            else:
+                time_intensity_map[identifier][time_point] = intensity
+
+        # from the dictionary, create lists of times and intensities & add the start and end points
+        times = list(time_intensity_map[identifier].keys())
+        intensities = list(time_intensity_map[identifier].values())
+        times.insert(0, time_range[0])
         times.append(time_range[1])
+        intensities.insert(0, min_intensity)
         intensities.append(min_intensity)
 
-        ax_main.plot(times, intensities, color=color, linewidth=1, label=f'{identifier}', zorder=identifier_zorder[identifier])
+        ax_main.plot(times, intensities, color=color, linewidth=1.5, label=f'{identifier}', zorder=identifier_zorder[identifier])
 
     # label specifications
     ax_main.set_xlabel('Time (min)', fontsize=18)

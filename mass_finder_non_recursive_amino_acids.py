@@ -193,9 +193,10 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
         for peak in spectrum[1:]:
             peaks = [value for value in peak]
             for peak in peaks:
-                plot_list.append([peak['experimental_mass'], time, log10(peak['intensity']),
+                plot_list.append([peak['experimental_mass'], time, peak['intensity'], log10(peak['intensity']),
                                   peak['formula'], peak['parent_mass']])
-    plot_list = pd.DataFrame(plot_list, columns=['experimental_mass', 'time', 'intensity', 'formula', 'parent_mass'])
+    plot_list = pd.DataFrame(plot_list, columns=['experimental_mass', 'time', 'intensity', 'intensity_log10',
+                                                 'formula', 'parent_mass'])
     plot_list = plot_list.sort_values(by='time', ascending=True, ignore_index=True)
 
     # Check if plot_list is empty
@@ -247,7 +248,7 @@ def plot_scatter(plot_list, output_file, time_range, mass_range,
         indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
         color = colors[i]
         for j in indices:
-            alpha = (plot_list.at[j, 'intensity'] - log_min_intensity) / (plot_list['intensity'].max() - log_min_intensity)  # Normalize z value for shading
+            alpha = (plot_list.at[j, 'intensity_log10'] - log_min_intensity) / (plot_list['intensity_log10'].max() - log_min_intensity)  # Normalize z value for shading
             plt.scatter(plot_list.at[j, 'time'], plot_list.at[j, 'experimental_mass'],
                         marker='.', edgecolors='none', color=color, alpha=alpha, label=f'{identifier}')
 
@@ -268,7 +269,7 @@ def plot_scatter(plot_list, output_file, time_range, mass_range,
     plt.grid(which='both', alpha=0.3)
 
     # Create a ScalarMappable object for the intensity values
-    alpha_sm = plt.cm.ScalarMappable(cmap=plt.cm.gray_r, norm=plt.Normalize(vmin=log_min_intensity, vmax=plot_list['intensity'].max()))
+    alpha_sm = plt.cm.ScalarMappable(cmap=plt.cm.gray_r, norm=plt.Normalize(vmin=log_min_intensity, vmax=plot_list['intensity_log10'].max()))
     alpha_sm.set_array([])  # Setting an empty array
 
     # Add a color bar representing intensity values
@@ -309,7 +310,7 @@ def plot_XIC(plot_list, output_file, time_range,
         intensities = [min_intensity]
         for j in indices:
             times.append(plot_list.at[j, 'time'])
-            intensities.append(round(np.power(10, plot_list.at[j, 'intensity'])))
+            intensities.append(plot_list.at[j, 'intensity'])
         times.append(time_range[1])
         intensities.append(min_intensity)
 

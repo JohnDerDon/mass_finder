@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Parse through mzXML files to find specific mass patterns that match specific
-chemical formulas.
+Parse through mzXML files to find specific compounds based on their mass and intensity.
 
-(C) Mathijs Mabesoone, ETH Zurich
-February 2022
+(C) Johannes Eckert, ETH Zurich
+April 2024
 """
 from pyteomics import mzxml
 import os
@@ -258,11 +257,11 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
                         2 * (num_groups + group_identifiers)))
             colors = np.append(colors, [plt.cm.rainbow(color_distribution)], axis=0)
 
-    suffix = ''
+    suffix = 0
     if not overwrite:
-        if any([os.path.isfile(output_file + '_scatter.svg'), os.path.isfile(output_file + '_XIC.svg')]):
+        if os.path.isfile(output_file + '.svg'):
             suffix = 1
-            while any([os.path.isfile(output_file + '_' + str(suffix) + '_scatter.svg'), os.path.isfile(output_file + '_' + str(suffix) + '_XIC.svg')]):
+            while os.path.isfile(output_file + '_' + str(suffix) + '.svg'):
                 suffix += 1
 
     # Plot the results
@@ -298,7 +297,8 @@ def plot_results_subplots(plot_list, output_file, time_range, mass_range,
                  colors, log_min_intensity, ax_colorbar)
 
     # Save the plot
-    output_file = f"{output_file}_{suffix}"
+    if suffix != 0:
+        output_file = f"{output_file}_{suffix}"
     plt.savefig(output_file + '.svg', transparent=True, dpi=300)
     plt.close()
 
@@ -396,11 +396,15 @@ def plot_XIC(ax_XIC, plot_list, time_range,
                 time_intensity_map[identifier][time_point] = intensity
 
         # from the dictionary, create lists of times and intensities & add the start and end points
+        # added timepoints are necessary to create a continuous line plot
+        # 2nd insertion to ensure that the line plot has a peak when having low intensity samples
         times = list(time_intensity_map[identifier].keys())
         intensities = list(time_intensity_map[identifier].values())
         times.insert(0, time_range[0])
+        times.insert(1, (times[1]-0.01))
         times.append(time_range[1])
         intensities.insert(0, min_intensity)
+        intensities.insert(1, min_intensity)
         intensities.append(min_intensity)
 
         ax_XIC.plot(times, intensities, color=color, linewidth=1.5, label=f'{identifier}', zorder=identifier_zorder[identifier])

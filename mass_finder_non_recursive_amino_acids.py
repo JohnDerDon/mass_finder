@@ -37,6 +37,8 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
         return None
 
     matching_masses = []
+
+    # calculate the mass of a proton in dalton
     mass_proton_kilo = constants.physical_constants['proton mass'][0]
     kilo_in_dalton = constants.physical_constants['atomic mass unit-kilogram relationship'][0]
     mass_proton = mass_proton_kilo / kilo_in_dalton
@@ -401,14 +403,16 @@ def plot_XIC(ax_XIC, plot_list, time_range,
 
         # from the dictionary, create lists of times and intensities & add the start and end points
         # added timepoints are necessary to create a continuous line plot
-        # 2nd insertion to ensure that the line plot has a peak when having low intensity samples
+        # 2nd & 3rd insertion to ensure that the line plot has a peak when having low intensity samples
         times = list(time_intensity_map[identifier].keys())
         intensities = list(time_intensity_map[identifier].values())
         times.insert(0, time_range[0])
         times.insert(1, (times[1]-0.01))
+        times.append(times[-1] + 0.01)
         times.append(time_range[1])
         intensities.insert(0, min_intensity)
         intensities.insert(1, min_intensity)
+        intensities.append(min_intensity)
         intensities.append(min_intensity)
 
         ax_XIC.plot(times, intensities, color=color, linewidth=1.5, label=f'{identifier}', zorder=identifier_zorder[identifier])

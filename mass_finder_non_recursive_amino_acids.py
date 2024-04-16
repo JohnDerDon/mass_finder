@@ -214,6 +214,10 @@ def relative_abundances(plot_list):
     Returns:
         dict: Dictionary containing the relative abundances of each formula.
     """
+    # check if plot_list is type NoneType
+    if plot_list is None:
+        return None
+
     # Group by 'formula' and sum the 'intensity' within each group
     sum_intensities = plot_list.groupby('formula')['intensity'].sum()
 
@@ -523,8 +527,14 @@ def main():
                 f"Mass range; {mass_range}\nTime range: {time_range}\n\n")
             output_file.write(
                 f"Relative abundances of the different formulas:\n")
-            for formula, abundance in relative_abundances(generate_plot_list(analyzed_spectra)).items():
-                output_file.write(f"\t{formula}:\t {abundance}\n")
+            # Check if the relative abundances are not None
+            if relative_abundances(generate_plot_list(analyzed_spectra)) is not None:
+                for formula, abundance in relative_abundances(generate_plot_list(analyzed_spectra)).items():
+                    output_file.write(f"\t{formula}:\t {abundance}\n")
+            else:
+                output_file.write(f"No matching masses found in {file}\n")
+                continue
+
             output_file.write(
                 f"\nFound {sum([len(spectrum[1]) for spectrum in analyzed_spectra if spectrum != None])} matching masses in {file}\n")
 

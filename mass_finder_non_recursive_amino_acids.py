@@ -43,6 +43,11 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
     kilo_in_dalton = constants.physical_constants['atomic mass unit-kilogram relationship'][0]
     mass_proton = mass_proton_kilo / kilo_in_dalton
 
+    # Iterate through each experimental mass in the spectrum
+    # and check if it matches any of the theoretical masses
+    # within the specified mass range and intensity threshold
+    # If a match is found, add the peak to the list of matching masses
+    # along with the formula, theoretical mass, charge state, and isotope peak number
     for index, experimental_mass in enumerate(mz_array):
         if mass_range[0] <= experimental_mass <= mass_range[1] and intensity_array[index] >= min_intensity:
                 for formula in formulas_with_charge:
@@ -60,7 +65,6 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
                                 'isotope_peak_number': isotope_peak_number,
                                 'parent_mass': formula_mass * charge - charge * mass_proton
                             })
-                            # print(formula, formula_mass, charge, experimental_mass)
                         # Assuming the formulas_with_charge dictionary is organized from low to high mass
 
     return (float(spectrum.get('retentionTime', 0)), matching_masses) if len(matching_masses) > 0 else None
@@ -70,6 +74,8 @@ def construct_element_dictionary(element_string):
     # Construct the element dictionary
     if element_string is None:
         return None
+    # Split the element string into individual elements
+    # and extract the minimum and maximum counts, the identifier, and the mass
     element_dictionary = {}
     elements = element_string.split('_')
     relative_abundance_13C = pymass.nist_mass['C'][13][1]  # Approximately 1.07% in nature from pymass
@@ -108,6 +114,8 @@ def generate_formulas(element_string):
     formulas = {}
     element_dict = construct_element_dictionary(element_string)
     elements = list(element_dict.keys())
+
+    # Recursively generate all possible formulas
 
     def backtrack(formula, current_element, mass, isotope_count):
         """Recursively generate all possible formulas"""
@@ -152,6 +160,7 @@ def generate_formula_with_charge(formulas, mass_range, monoisotopic):
         isotope_peak_number = round(isotope_count)
 
         for charge in range(min_charge, max_charge + 1):
+            # check if monoisotopic is set to True
             if monoisotopic:
                 charge_state_mass = round((mass + (charge * mass_proton)) / charge, 4)
             else:
@@ -166,6 +175,8 @@ def generate_formula_with_charge(formulas, mass_range, monoisotopic):
 
 
 def calculate_charge_range(mass, mass_range):
+
+    # Calculate the minimum and maximum charge states for a given mass based on the mass range
     min_charge = max(1, int((mass + mass_range[1]) / mass_range[1]))
     max_charge = max(1, int((mass + mass_range[0]) / mass_range[0])) - 1
 
@@ -175,6 +186,8 @@ def calculate_charge_range(mass, mass_range):
 def append_suffix_to_file(file, overwrite):
     # Check if files already exist and if so, append a suffix to the file name
     file = os.path.splitext(file)[0]
+
+    #  check if the file should be overwritten
     if overwrite:
         return file
     if any([os.path.isfile(file + extension) for extension in ['.svg', '.png', '_analyzed.txt']]):
@@ -187,6 +200,10 @@ def append_suffix_to_file(file, overwrite):
 
 
 def generate_plot_list(analyzed_spectra):
+
+    # Generate a DataFrame with the experimental mass, time, intensity, log10(intensity), formula, and parent mass
+    # for each peak in the analyzed spectra
+    # The DataFrame is sorted by time in ascending order
     plot_list = list()
     for spectrum in [spectrum for spectrum in analyzed_spectra if spectrum is not None]:
         time = spectrum[0]
@@ -505,6 +522,9 @@ def main():
 
     nl = '\n\t\t'  # new line for f-strings
 
+    # Check if the output folder is a valid directory
+    # If not, save the files in the same directory as the mzxml files
+    # If the folder does not exist, create it
     for file in files:
         sys.stdout.write(f"Started parsing {file}\n")
         data = mzxml.MzXML(file, use_index=True)
@@ -524,6 +544,11 @@ def main():
                 file = os.path.join(args.output_folder, os.path.basename(file))
         file = append_suffix_to_file(os.path.join(os.path.dirname(file), str(args.output_prefix) + os.path.basename(file)),
                                      args.overwrite)
+
+        # Write the results to a txt file
+        # Check if the relative abundances are not None
+        # Otherwise, write the relative abundances of the different formulas
+
         with open(os.path.splitext(file)[0] + '_analyzed.txt', 'w') as output_file:
             output_file.write(
                 f"Checking for compounds with formulas in range {args.elements}.\nChecking in time range {time_range} and mass range {mass_range}.\n\n")
@@ -549,6 +574,10 @@ def main():
                 for peak in spectrum:
                     output_file.write(
                         f"\tExperimental Mass: {peak['experimental_mass']}\tIntensity: {peak['intensity']}\tFormula: {peak['formula']}\tTheoretical mass: {peak['theoretical_mass']}\tParent mass: {peak['parent_mass']}\tCharge state: {peak['charge_state']}\tIsotope peak number: {peak['isotope_peak_number']}" + "\n")
+
+        # Plot the results
+        # Check if the full range is set to True
+
         if args.full_range:
             plot_time_range = [round(float(data.time[float(time)]['retentionTime']),2) for time in args.plot_time_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]

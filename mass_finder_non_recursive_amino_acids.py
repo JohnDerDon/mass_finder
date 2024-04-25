@@ -2,7 +2,7 @@
 """
 Parse through mzXML files to find specific compounds based on their mass and intensity.
 
-(C) Johannes Eckert, ETH Zurich
+(C) Johannes Eckert, Mathijs Mabesoone, ETH Zurich
 April 2024
 """
 from pyteomics import mzxml

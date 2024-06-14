@@ -71,16 +71,26 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
 
 
 def construct_element_dictionary(element_string):
+    """
+    Construct a dictionary of elements from a given element string.
+
+    Parameters:
+    element_string (str): The input string defining elements and their counts.
+
+    Returns:
+    dict: A dictionary with element identifiers as keys and their counts, mass, and isotope count as values.
+    """
+
     # Construct the element dictionary
     if element_string is None:
         return None
     # Split the element string into individual elements
     # and extract the minimum and maximum counts, the identifier, and the mass
     element_dictionary = {}
-    elements = element_string.split('_')
+    elements = element_string.split(';')
     relative_abundance_13C = pymass.nist_mass['C'][13][1]  # Approximately 1.07% in nature from pymass
     for element in elements:
-        parts = element.split('-')
+        parts = element.split('_')
         assert len(parts) == 3
         min_count = int(parts[0])
         max_count = int(parts[2])
@@ -111,6 +121,16 @@ def construct_element_dictionary(element_string):
 
 
 def generate_formulas(element_string):
+    """
+    Generate all possible formulas from the given element string.
+
+    Parameters:
+    element_string (str): The input string defining elements and their counts.
+
+    Returns:
+    dict: A dictionary of formulas with their masses and isotope counts.
+    """
+
     formulas = {}
     element_dict = construct_element_dictionary(element_string)
     elements = list(element_dict.keys())
@@ -131,7 +151,7 @@ def generate_formulas(element_string):
             updated_mass = mass + (element_mass * count)
             updated_isotope_count = isotope_count + (element_isotope_count * count)
             # If the count is non-zero, proceed recursively
-            if count > 0:
+            if count != 0:
                 backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count)
             else:
                 # If the count is zero, proceed without adding the element
@@ -145,6 +165,18 @@ def generate_formulas(element_string):
 
 
 def generate_formula_with_charge(formulas, mass_range, monoisotopic):
+    """
+    Calculate the charge states and corresponding masses for each formula within a given mass range.
+
+    Parameters:
+    formulas (dict): Dictionary of formulas with their masses and isotope counts.
+    mass_range (list): List with minimum and maximum mass range values.
+    monoisotopic (bool): Flag to indicate whether to use monoisotopic masses.
+
+    Returns:
+    dict: A dictionary with formulas as keys and lists of charge states, masses, and isotope peak numbers as values.
+    """
+
     formulas_with_charge = {}
 
     # calculate the masses of a proton and a neutron for the isotope peak calculation
@@ -175,6 +207,16 @@ def generate_formula_with_charge(formulas, mass_range, monoisotopic):
 
 
 def calculate_charge_range(mass, mass_range):
+    """
+    Calculate the minimum and maximum charge states for a given mass based on the mass range.
+
+    Parameters:
+    mass (float): The mass of the formula.
+    mass_range (list): List with minimum and maximum mass range values.
+
+    Returns:
+    tuple: Minimum and maximum charge states.
+    """
 
     # Calculate the minimum and maximum charge states for a given mass based on the mass range
     min_charge = max(1, int((mass + mass_range[1]) / mass_range[1]))

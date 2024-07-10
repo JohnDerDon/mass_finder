@@ -92,7 +92,11 @@ def construct_element_dictionary(element_string):
     for element in elements:
         parts = element.split('_')
         assert len(parts) == 3
-        min_count = int(parts[0])
+        # Check if the minimum count is set to 'X', indicating that the element can only be added once
+        if parts[0] != 'X':
+            min_count = int(parts[0])
+        else:
+            min_count = False
         max_count = int(parts[2])
         identifier = parts[1]
         # check if there is a custom mass
@@ -135,9 +139,12 @@ def generate_formulas(element_string):
     element_dict = construct_element_dictionary(element_string)
     elements = list(element_dict.keys())
 
+    # check for single use elements in the element dictionary
+    single_use_elements = {element for element, (min_count, _, _, _) in element_dict.items() if min_count is False}
+
     # Recursively generate all possible formulas
 
-    def backtrack(formula, current_element, mass, isotope_count):
+    def backtrack(formula, current_element, mass, isotope_count, used_single_use_element):
         """Recursively generate all possible formulas"""
         if current_element == len(elements):
             formulas[formula] = (mass, isotope_count)
@@ -146,20 +153,29 @@ def generate_formulas(element_string):
         element = elements[current_element]
         min_count, max_count, element_mass, element_isotope_count = element_dict[element]
 
-        for count in range(min_count, max_count + 1):
-            updated_formula = f"{formula}{element}{count}"
-            updated_mass = mass + (element_mass * count)
-            updated_isotope_count = isotope_count + (element_isotope_count * count)
-            # If the count is non-zero, proceed recursively
-            if count != 0:
-                backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count)
-            else:
-                # If the count is zero, proceed without adding the element
-                backtrack(formula, current_element + 1, mass, isotope_count)
+        # check if the element is a single use element
+        # if it is, check if it has already been used
+        # if it has not been used, add the element to the formula
+        if element in single_use_elements:
+            if not used_single_use_element:
+                if max_count != 0:
+                    updated_formula = f"{formula}{element}({max_count})"
+                    updated_mass = mass + (element_mass * max_count)
+                    updated_isotope_count = isotope_count + (element_isotope_count * max_count)
+                    backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count, element)
+            backtrack(formula, current_element + 1, mass, isotope_count, used_single_use_element)
+        else:
+            for count in range(min_count, max_count + 1):
+                if count != 0:
+                    updated_formula = f"{formula}{element}({count})"
+                    updated_mass = mass + (element_mass * count)
+                    updated_isotope_count = isotope_count + (element_isotope_count * count)
+                    backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count,
+                              used_single_use_element)
 
-    backtrack("", 0, 0.0, 0.0)
-    # Sort the formulas dictionary with a lambda function that sorts by the mass
-    formulas = {formula: (mass, isotope_count) for formula, (mass, isotope_count) in sorted(formulas.items(), key=lambda item: item[1][0])}
+    backtrack("", 0, 0.0, 0.0, None)
+    formulas = {formula: (mass, isotope_count) for formula, (mass, isotope_count) in
+                sorted(formulas.items(), key=lambda item: item[1][0])}
 
     return formulas
 
@@ -304,7 +320,6 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     sorted_df = plot_list[['formula', 'parent_mass']].sort_values(by='parent_mass')
     # Get the sorted unique identifiers as a list
     sorted_unique_identifiers = sorted_df['formula'].drop_duplicates().tolist()
-
     num_identifiers = len(sorted_unique_identifiers)
 
     # Generate a custom colormap with a varying number of colors
@@ -321,6 +336,7 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
             color_distribution = ((i + 1 / group_identifiers) / num_groups + j / (
                         2 * (num_groups + group_identifiers)))
             colors = np.append(colors, [plt.cm.rainbow(color_distribution)], axis=0)
+    inverted_colors = colors[::-1]
 
     suffix = 0
     if not overwrite:
@@ -330,8 +346,8 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
                 suffix += 1
 
     # Plot the results
-    plot_results_subplots(plot_list, output_file, time_range, mass_range, full_range, sorted_unique_identifiers, colors,
-                          log_min_intensity, suffix, min_intensity)
+    plot_results_subplots(plot_list, output_file, time_range, mass_range, full_range, sorted_unique_identifiers,
+                          inverted_colors, log_min_intensity, suffix, min_intensity)
 
 
 def plot_results_subplots(plot_list, output_file, time_range, mass_range,

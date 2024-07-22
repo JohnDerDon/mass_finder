@@ -166,11 +166,16 @@ def generate_formulas(element_string):
             backtrack(formula, current_element + 1, mass, isotope_count, used_single_use_element)
         else:
             for count in range(min_count, max_count + 1):
+                updated_formula = f"{formula}{element}({count})"
+                updated_mass = mass + (element_mass * count)
+                updated_isotope_count = isotope_count + (element_isotope_count * count)
+                # If the count is non-zero, proceed recursively
                 if count != 0:
-                    updated_formula = f"{formula}{element}({count})"
-                    updated_mass = mass + (element_mass * count)
-                    updated_isotope_count = isotope_count + (element_isotope_count * count)
                     backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count,
+                              used_single_use_element)
+                else:
+                    # If the count is zero, proceed without adding the element
+                    backtrack(formula, current_element + 1, mass, isotope_count,
                               used_single_use_element)
 
     backtrack("", 0, 0.0, 0.0, None)

@@ -588,18 +588,7 @@ def main():
     if args.elements is None:
         sys.stdout.write(f"No elements string received. Exiting.\n")
         return
-    if args.full_range and args.plot_mass_range == '200-2000':
-        operating_system = system()
-        if operating_system == 'Windows':
-            reply = ''
-        else:
-            sys.stdout.write(f"Running on Linux. Using standard mass_range: 200-2000.\n")
-            reply = 'n'
-        while reply.lower() not in ['y', 'n']:
-            reply = input(
-                'No mass range specified? The original range is not saved in the mzXML files. Do you want to specify your own instead of using the default 200-2000? [y/n]:\n')
-        if reply.lower == 'y':
-            args.plot_mass_range = input("Input your desired mass range:\n")
+
 
     # Analyze for each file all spectra in parallel. Write output of each file to a txt
     pool = mp.Pool(args.threads)

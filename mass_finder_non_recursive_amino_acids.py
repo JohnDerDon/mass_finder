@@ -596,6 +596,13 @@ def main():
     time_range = [float(time) for time in args.time_range.split('-')]
     formulas_with_charge = generate_formula_with_charge(generate_formulas(args.elements), mass_range, args.monoisotopic)
 
+    # Check if the plot_time_range and plot_mass_range are set to the default values
+    # If not, set full_range to True, since full_range is needed to trigger personal plot time and mass ranges
+    if args.plot_time_range != '0-30' or args.plot_mass_range != '200-2000':
+        full_range = True
+    else:
+        full_range = args.full_range
+
     nl = '\n\t\t'  # new line for f-strings
 
     # Check if the output folder is a valid directory
@@ -654,16 +661,10 @@ def main():
         # Plot the results
         # Check if the full range is set to True
 
-        if args.full_range:
-            plot_time_range = [round(float(data.time[float(time)]['retentionTime']),2) for time in args.plot_time_range.split('-')]
-            plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
-            plot_results(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
-                               args.overwrite, args.full_range, args.min_intensity, args.plot_group_identifiers)
-        else:
-            plot_time_range = [round(float(data.time[float(time)]['retentionTime']), 2) for time in args.plot_time_range.split('-')]
-            plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
-            plot_results(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
-                               args.overwrite, args.full_range, args.min_intensity, args.plot_group_identifiers)
+        plot_time_range = [round(float(data.time[float(time)]['retentionTime']), 2) for time in args.plot_time_range.split('-')]
+        plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
+        plot_results(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
+                           args.overwrite, full_range, args.min_intensity, args.plot_group_identifiers)
     pool.close()
 
 

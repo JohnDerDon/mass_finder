@@ -564,7 +564,7 @@ def main():
                         help='If full_range is True, the output plot will span the entire time and mass range. Useful for comparing samples, but less ideal to check a single file. Default: False',
                         action='store_true')
     parser.add_argument('-monoisotopic',
-                        help='If full_range is True, the output plot will span the entire time and mass range. Useful for comparing samples, but less ideal to check a single file. Default: False',
+                        help='If monoisotopic is True, the monoisotopic mass peaks will be searched for instead of the calculated highest abundant mass peak. Default: False',
                         action='store_true')
     parser.add_argument('-plot_time_range', help='Time range to use for plotting', default='0-30', type=str)
     parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='200-2000', type=str)

@@ -376,7 +376,7 @@ def plot_results_subplots(plot_list, output_file, time_range, mass_range,
     plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors, relative_abundances)
 
     # Plot the XIC
-    plot_XIC(ax_XIC, plot_list, time_range, sorted_unique_identifiers, colors, min_intensity, ax_legend)
+    plot_XIC(ax_XIC, plot_list, time_range, full_range, sorted_unique_identifiers, colors, min_intensity, ax_legend)
 
     # Plot the scatter plot
     plot_scatter(ax_scatter, plot_list, time_range, mass_range, full_range, sorted_unique_identifiers,
@@ -453,7 +453,7 @@ def plot_scatter(ax_scatter, plot_list, time_range, mass_range,
     cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
 
 
-def plot_XIC(ax_XIC, plot_list, time_range,
+def plot_XIC(ax_XIC, plot_list, time_range, full_range,
                  sorted_unique_identifiers, colors, min_intensity, ax_legend):
 
     max_values = plot_list.groupby('formula')['intensity'].max()  # Get the maximum intensity for each identifier
@@ -501,6 +501,12 @@ def plot_XIC(ax_XIC, plot_list, time_range,
     ax_XIC.set_xlabel('Time (min)', fontsize=18)
     ax_XIC.set_ylabel('Intensity', fontsize=18)
     ax_XIC.tick_params(axis='both', which='major', labelsize=14)
+
+    # check if full_range is true, otherwise adapt range
+    if full_range:
+        ax_XIC.set_xlim((min(time_range), max(time_range)))
+    else:
+        ax_XIC.set_xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
 
     ax_XIC.grid(which='both', alpha=0.3)
 

@@ -25,6 +25,20 @@ from textwrap import wrap
 
 
 def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
+    """
+    Analyzes a mass spectrum to find peaks matching theoretical masses within a specified accuracy range.
+
+    Parameters:
+    - spectrum (dict): Dictionary containing 'm/z array' and 'intensity array' from mass spectrometry data.
+    - mass_range (tuple): Tuple specifying the minimum and maximum m/z values to consider.
+    - accuracy (float): Accuracy threshold for matching experimental masses to theoretical masses.
+    - formulas_with_charge (dict): Dictionary where keys are molecular formulas and values are lists of tuples containing charge, theoretical mass, and isotope peak number.
+    - min_intensity (float): Minimum intensity threshold to consider a peak.
+
+    Returns:
+    - tuple: Retention time and list of matching masses with details, or None if no matches are found.
+    """
+
     # Convert arrays to numpy arrays
     if spectrum.get('msLevel', 0) == 1:  # Check if the spectrum is MS1
         mz_array = np.array(spectrum.get('m/z array', []))
@@ -66,8 +80,12 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
                                 'parent_mass': formula_mass * charge - charge * mass_proton
                             })
                         # Assuming the formulas_with_charge dictionary is organized from low to high mass
+    if len(matching_masses) > 0:
+        analyzed_spectra = (float(spectrum.get('retentionTime', 0)), matching_masses)
+    else:
+        return None
 
-    return (float(spectrum.get('retentionTime', 0)), matching_masses) if len(matching_masses) > 0 else None
+    return analyzed_spectra
 
 
 def construct_element_dictionary(element_string):

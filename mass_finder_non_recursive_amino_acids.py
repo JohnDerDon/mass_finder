@@ -589,12 +589,13 @@ def main():
         sys.stdout.write(f"No elements string received. Exiting.\n")
         return
 
-
-    # Analyze for each file all spectra in parallel. Write output of each file to a txt
-    pool = mp.Pool(args.threads)
+    # Generate variables for the mass and time ranges, formulas with charge, and plot time and mass ranges from the arguments
     mass_range = [float(mass) for mass in args.mass_range.split('-')]
     time_range = [float(time) for time in args.time_range.split('-')]
     formulas_with_charge = generate_formula_with_charge(generate_formulas(args.elements), mass_range, args.monoisotopic)
+    plot_time_range = [round(float(data.time[float(time)]['retentionTime']), 2) for time in
+                       args.plot_time_range.split('-')]
+    plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
 
     # Check if the plot_time_range and plot_mass_range are set to the default values
     # If not, set full_range to True, since full_range is needed to trigger personal plot time and mass ranges
@@ -602,6 +603,9 @@ def main():
         full_range = True
     else:
         full_range = args.full_range
+
+    # Analyze for each file all spectra in parallel. Write output of each file to a txt
+    pool = mp.Pool(args.threads)
 
     nl = '\n\t\t'  # new line for f-strings
 
@@ -661,8 +665,6 @@ def main():
         # Plot the results
         # Check if the full range is set to True
 
-        plot_time_range = [round(float(data.time[float(time)]['retentionTime']), 2) for time in args.plot_time_range.split('-')]
-        plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
         plot_results(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
                            args.overwrite, full_range, args.min_intensity, args.plot_group_identifiers)
     pool.close()

@@ -353,7 +353,7 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     num_groups = num_identifiers // group_identifiers
 
     colors = np.array([]).reshape(0, 4)
-    # Generate a list of colors using the tab20 colormap based on the number of unique identifiers
+    # Generate a list of colors using the rainbow colormap based on the number of unique identifiers
     for i in range(num_groups):
         for j in range(group_identifiers):
             color_distribution = ((i + 1 / group_identifiers) / num_groups + j / (

@@ -537,12 +537,12 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
 
 def main():
     # Parse arguments
-    parser = argparse.ArgumentParser(description='Check an xml files in a folder for a specific isotope pattern.')
+    parser = argparse.ArgumentParser(description='Check XML files in a folder for a specific isotope pattern.')
     parser.add_argument('-input', help='Input folder or file')
     parser.add_argument('-threads', help='Number of threads to use', type=int, default=1)
     parser.add_argument('-min_intensity', help='Minimal intensity of main peak to report. Default = 1e4.', type=float, default=1e4)
     parser.add_argument('-elements',
-                        help='Define the boundaries for elemental composition. Input format [minimal number]-[element]-[maximal number]_[next element]. E.g. "2-C-10_2-N-5_0-H-20]". For custom masses, such as between 1 and 2 phenols, add 1-phenol:94.0419-2.',
+                        help='Define the boundaries for elemental composition. Input format [minimal number]-[element]-[maximal number]_[next element]. E.g. "2-C-10_2-N-5_0-H-20". For custom masses, such as between 1 and 2 phenols, add 1-phenol:94.0419-2.',
                         type=str, default=None)
     parser.add_argument('-accuracy',
                         help='Tolerance of relative mass difference between measured and predicted masses. Default = 5e-6.',
@@ -551,7 +551,7 @@ def main():
                         help='Set a custom time range to analyze in the mass spec data. Example: for 3-10 minutes, enter 3-10.',
                         type=str, default='0-1000')
     parser.add_argument('-mass_range',
-                        help='Set a custom mass range to analyze in the mass spec data. Example: for m/z 200-600 , enter 200-600.',
+                        help='Set a custom mass range to analyze in the mass spec data. Example: for m/z 200-600, enter 200-600.',
                         type=str, default='200-2000')
     parser.add_argument('-output_folder',
                         help='Specify a specific output folder. If not specified, the output will be in the same folder as the mzxml files.',
@@ -576,11 +576,11 @@ def main():
     sys.stdout.write(f"{''.join(['=' for _ in range(20)])}\n")
     # Check if the input is a directory or file and make a file list
     if os.path.isdir(args.input) and not os.path.isfile(args.input):
-        files = [os.path.join(args.input, file) for file in os.listdir(args.input) if '.mzxml' in file.lower()]
-        sys.stdout.write(f"Detected {len(files)} .MZxml files to analyze in {args.input}:\n")
-        sys.stdout.write('\t' + '\n\t'.join(files) + '\n')
+        mzxml_files = [os.path.join(args.input, file) for file in os.listdir(args.input) if '.mzxml' in file.lower()]
+        sys.stdout.write(f"Detected {len(mzxml_files)} .MZxml files to analyze in {args.input}:\n")
+        sys.stdout.write('\t' + '\n\t'.join(mzxml_files) + '\n')
     elif os.path.isfile(args.input) and '.mzxml' in args.input.lower():
-        files = [args.input]
+        mzxml_files = [args.input]
         sys.stdout.write(f"Analyzing single file: {args.input}.\n")
     else:
         sys.stdout.write(f"Did not detect any MZxml files in {args.input}. Terminating...\n")
@@ -596,10 +596,7 @@ def main():
 
     # Check if the plot_time_range and plot_mass_range are set to the default values
     # If not, set full_range to True, since full_range is needed to trigger personal plot time and mass ranges
-    if args.plot_time_range != '0-30' or args.plot_mass_range != '200-2000':
-        full_range = True
-    else:
-        full_range = args.full_range
+    full_range = args.full_range if args.plot_time_range == '0-30' and args.plot_mass_range == '200-2000' else True
 
     # Analyze for each file all spectra in parallel. Write output of each file to a txt
     pool = mp.Pool(args.threads)
@@ -609,31 +606,36 @@ def main():
     # Check if the output folder is a valid directory
     # If not, save the files in the same directory as the mzxml files
     # If the folder does not exist, create it
-    for file in files:
-        sys.stdout.write(f"Started parsing {file}\n")
-        data = mzxml.MzXML(file, use_index=True)
+    for input_file in mzxml_files:
+        sys.stdout.write(f"Started parsing {input_file}\n")
+        data = mzxml.MzXML(input_file, use_index=True)
         min_index, max_index = [int(data.time[float(time)]['id']) for time in time_range]
         analyzed_spectra = pool.starmap(analyze_mass_spec, [(data.get_by_index(int(index) - 1), mass_range,
                                                              args.accuracy, formulas_with_charge, args.min_intensity)
                                                             for index in range(min_index, max_index)])
         analyzed_spectra = [spectrum for spectrum in analyzed_spectra if spectrum is not None]
         sys.stdout.write(
-            f"\tFound {sum([len(spectrum[1]) for spectrum in analyzed_spectra if spectrum != None])} masses matching the pattern in {file}\n")
+            f"\tFound {sum([len(spectrum[1]) for spectrum in analyzed_spectra if spectrum != None])} masses matching the pattern in {input_file}\n")
 
+        # Handle output file path
         if args.output_folder is not None:
             if not os.path.isdir(args.output_folder):
                 sys.stdout.write(
-                    f"WARNING: {args.output_folder} is not a valid folder path. Saving files in {os.path.dirname(file)} instead.\n")
+                    f"WARNING: {args.output_folder} is not a valid folder path. Saving files in {os.path.dirname(input_file)} instead.\n")
+                output_file_path = os.path.join(os.path.dirname(input_file), os.path.basename(input_file))
             else:
-                file = os.path.join(args.output_folder, os.path.basename(file))
-        file = append_suffix_to_file(os.path.join(os.path.dirname(file), str(args.output_prefix) + os.path.basename(file)),
+                output_file_path = os.path.join(args.output_folder, os.path.basename(input_file))
+        else:
+            output_file_path = os.path.join(os.path.dirname(input_file), os.path.basename(input_file))
+
+        output_file_path = append_suffix_to_file(os.path.join(os.path.dirname(output_file_path), str(args.output_prefix) + os.path.basename(output_file_path)),
                                      args.overwrite)
 
         # Write the results to a txt file
         # Check if the relative abundances are not None
         # Otherwise, write the relative abundances of the different formulas
 
-        with open(os.path.splitext(file)[0] + '_analyzed.txt', 'w') as output_file:
+        with open(os.path.splitext(output_file_path)[0] + '_analyzed.txt', 'w') as output_file:
             output_file.write(
                 f"Checking for compounds with formulas in range {args.elements}.\nChecking in time range {time_range} and mass range {mass_range}.\n\n")
             output_file.write(
@@ -645,11 +647,11 @@ def main():
                 for formula, abundance in relative_abundances(generate_plot_list(analyzed_spectra)).items():
                     output_file.write(f"\t{formula}:\t {abundance}\n")
             else:
-                output_file.write(f"No matching masses found in {file}\n")
+                output_file.write(f"No matching masses found in {output_file_path}\n")
                 continue
 
             output_file.write(
-                f"\nFound {sum([len(spectrum[1]) for spectrum in analyzed_spectra if spectrum != None])} matching masses in {file}\n")
+                f"\nFound {sum([len(spectrum[1]) for spectrum in analyzed_spectra if spectrum != None])} matching masses in {output_file_path}\n")
 
             for retention_time, spectrum in analyzed_spectra:
                 if retention_time is None:
@@ -664,10 +666,11 @@ def main():
         plot_time_range = [round(float(data.time[float(time)]['retentionTime']), 2) for time in
                            args.plot_time_range.split('-')]
         plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
-        plot_results(analyzed_spectra, os.path.splitext(file)[0], plot_time_range, plot_mass_range,
+        plot_results(analyzed_spectra, os.path.splitext(input_file)[0], plot_time_range, plot_mass_range,
                            args.overwrite, full_range, args.min_intensity, args.plot_group_identifiers)
     pool.close()
 
 
 if __name__ == '__main__':
     main()
+

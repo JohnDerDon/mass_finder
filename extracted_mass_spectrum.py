@@ -184,7 +184,7 @@ def main():
     ppm_range = float(args.ppm_range)
 
     # Check for full_range logic
-    full_range = args.full_range or (args.plot_time_range != '0-30' or args.plot_mass_range != '200-2000')
+    full_range = args.full_range or (args.plot_intensity_range != '0-1e9' or args.plot_mass_range != '200-2000')
 
     # Analyze each file and write output
     with mp.Pool(args.threads) as pool:

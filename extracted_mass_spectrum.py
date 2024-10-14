@@ -151,23 +151,57 @@ def generate_plot_dataframe(analyzed_spectra, ppm_range):
     return result_df
 
 
-def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_range, overwrite):
+def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_range, intensity_threshold, overwrite):
     """
     Plot the analyzed spectra based on the provided DataFrame.
-    :param plot_dataframe: DataFrame containing the mass and intensity data to plot.
+    Display the mass values on top of each intensity bar only if the conditions are met:
+    1. normalized_intensity is above the specified threshold.
+    2. label is True.
+
+    :param plot_dataframe: DataFrame containing the mass, intensity, normalized intensity, and label data to plot.
     :param output_file: Path for saving the plot.
-    :param plot_intensity_range: Intensity range for the plot.
-    :param plot_mass_range: Mass range for the plot.
+    :param plot_mass_range: Mass range for the plot, or 'X' for lower limit and 'Y' for upper limit to use default.
+    :param plot_intensity_range: Intensity range for the plot, or 'X' for lower limit and 'Y' for upper limit to use default.
     :param overwrite: Boolean to determine if existing plots should be overwritten.
+    :param intensity_threshold: Threshold for normalized_intensity to decide which peaks to label.
     """
     plt.figure(figsize=(10, 6))
 
+    # Create the bar plot
     plt.bar(plot_dataframe['mass'], plot_dataframe['total_intensity'], width=0.5, color='blue', alpha=0.7)
     plt.title('Mass Spectrum')
     plt.xlabel('Mass (m/z)')
     plt.ylabel('Intensity')
-    plt.xlim(plot_mass_range)
-    plt.ylim(0, plot_dataframe['total_intensity'].max() * 1.1)
+
+    # Determine mass and intensity limits
+    min_mass = plot_dataframe['mass'].min()
+    max_mass = plot_dataframe['mass'].max()
+    max_intensity = plot_dataframe['total_intensity'].max()
+
+    # Set x-axis limits based on plot_mass_range or calculated values
+    if plot_mass_range[0] == 0.0 and plot_mass_range[1] == 1.0:
+        plt.xlim(min_mass, max_mass * 1.1)
+    else:
+        plt.xlim(plot_mass_range)
+
+    # Set y-axis limits based on plot_intensity_range or calculated values
+    if plot_intensity_range[0] == 0.0 and plot_intensity_range[1] == 1.0:
+        plt.ylim(0, max_intensity * 1.2)
+    else:
+        plt.ylim(plot_intensity_range)
+
+    # Display mass values above each bar if conditions are met
+    for index, row in plot_dataframe.iterrows():
+        if row['normalized_intensity'] > intensity_threshold and row['label']:
+            plt.text(
+                row['mass'],  # x-coordinate (mass)
+                row['total_intensity'] + (0.02 * max_intensity),  # y-coordinate slightly above the bar
+                f'{row["mass"]:.4f}',  # Text label (mass value)
+                ha='center',  # Center the text horizontally
+                va='bottom',  # Position text below the y-coordinate
+                fontsize=8,  # Font size
+                rotation=45  # Rotate the text slightly for readability
+            )
 
     # Customizing ticks
     plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
@@ -198,8 +232,8 @@ def main():
     parser.add_argument('-overwrite', help='If true, existing plots will be overwritten.', action='store_true')
     parser.add_argument('-full_range', help='If true, plot will span the entire time and mass range.',
                         action='store_true')
-    parser.add_argument('-plot_intensity_range', help='Intensity range to use for plotting', default='0-1e9', type=str)
-    parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='200-2000', type=str)
+    parser.add_argument('-plot_intensity_range', help='Intensity range to use for plotting', default='0-1', type=str)
+    parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='0-1', type=str)
     parser.add_argument('-plot_label_intensity', help='Minimum intensity of the mass labels that is still plotted in %', default='10', type=str)
     parser.add_argument('-plot_group_identifiers', help='Group similar identifiers in the plot with similar colors',
                         default=1, type=int)
@@ -223,6 +257,7 @@ def main():
     mass_range = [float(mass) for mass in args.mass_range.split('-')]
     time_range = [float(time) for time in args.time_range.split('-')]
     ppm_range = float(args.ppm_range)
+    label_intensity_threshold = float(args.plot_label_intensity) / 100
 
     # Check for full_range logic
     full_range = args.full_range or (args.plot_intensity_range != '0-1e9' or args.plot_mass_range != '200-2000')
@@ -249,7 +284,7 @@ def main():
 
             sys.stdout.write(f"\tFound {len(plot_dataframe)} unique masses for plotting.\n")
             plot_results(plot_dataframe, os.path.splitext(input_file)[0], plot_mass_range, plot_intensity_range,
-                         args.overwrite)
+                         label_intensity_threshold, args.overwrite)
 
     sys.stdout.write(f"{''.join(['=' for _ in range(20)])}\n")
 

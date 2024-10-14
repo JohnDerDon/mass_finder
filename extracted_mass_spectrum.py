@@ -75,16 +75,20 @@ def analyze_mass_spec(spectrum, mass_range, time_range, min_intensity):
 def generate_plot_dataframe(analyzed_spectra, ppm_range):
     """
     Create a DataFrame for plotting by summing the intensities of masses within the specified ppm range.
+    Normalizes the total_intensity values by setting the highest total_intensity to 1.
+    Adds a column that indicates whether a mass is the highest intensity in its 0.6 Da range, labeled as True or False.
     :param analyzed_spectra: List of DataFrames containing analyzed spectra.
     :param ppm_range: PPM range for mass binning.
-    :return: DataFrame of summed masses and intensities.
+    :return: DataFrame of summed masses, normalized intensities, and a label.
     """
+    # Concatenate all spectra and sort by intensity
     all_spectra_dataframe = pd.concat(analyzed_spectra, ignore_index=True)
     all_spectra_dataframe = all_spectra_dataframe.sort_values(by='intensity', ascending=False, ignore_index=True)
 
     result_rows = []
     used_masses = np.zeros(all_spectra_dataframe.shape[0], dtype=bool)
 
+    # Iterate through each row and calculate total intensity within the specified ppm range
     for index, row in all_spectra_dataframe.iterrows():
         if used_masses[index]:
             continue
@@ -95,9 +99,11 @@ def generate_plot_dataframe(analyzed_spectra, ppm_range):
         mass_range_low = current_mass * (1 - ppm_range / 1_000_000)
         mass_range_high = current_mass * (1 + ppm_range / 1_000_000)
 
+        # Create mask to select masses within the ppm range
         mask = (all_spectra_dataframe['experimental_mass'] >= mass_range_low) & \
                (all_spectra_dataframe['experimental_mass'] <= mass_range_high)
 
+        # Sum the total intensities and get the highest mass within the range
         total_intensity = all_spectra_dataframe.loc[mask, 'intensity'].sum()
         highest_mass = all_spectra_dataframe.loc[mask, 'experimental_mass'].max()
 
@@ -108,7 +114,41 @@ def generate_plot_dataframe(analyzed_spectra, ppm_range):
 
         used_masses[mask] = True
 
-    return pd.DataFrame(result_rows)
+    # Convert result to DataFrame
+    result_df = pd.DataFrame(result_rows)
+
+    # Normalize the total_intensity values by dividing by the maximum total_intensity
+    max_intensity = result_df['total_intensity'].max()
+    result_df['normalized_intensity'] = result_df['total_intensity'] / max_intensity
+
+    # Sort by normalized intensity to determine the highest intensity masses
+    result_df = result_df.sort_values(by='normalized_intensity', ascending=False, ignore_index=True)
+
+    # Add a column to indicate if the mass is the highest in its 0.6 Da range
+    labels = []
+    for i, row in result_df.iterrows():
+        current_mass = row['mass']
+        if i == 0:
+            # The highest intensity mass is always True
+            labels.append(True)
+            continue
+
+        # Check if there is a higher intensity mass within 0.6 Da range
+        within_range = result_df[(result_df['mass'] >= current_mass - 0.6) &
+                                 (result_df['mass'] <= current_mass + 0.6) &
+                                 (result_df['normalized_intensity'] > row['normalized_intensity'])]
+
+        if within_range.empty:
+            labels.append(True)
+        else:
+            labels.append(False)
+
+    # Add the new column to the DataFrame
+    result_df['label'] = labels
+
+    print(result_df)
+
+    return result_df
 
 
 def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_range, overwrite):
@@ -160,6 +200,7 @@ def main():
                         action='store_true')
     parser.add_argument('-plot_intensity_range', help='Intensity range to use for plotting', default='0-1e9', type=str)
     parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='200-2000', type=str)
+    parser.add_argument('-plot_label_intensity', help='Minimum intensity of the mass labels that is still plotted in %', default='10', type=str)
     parser.add_argument('-plot_group_identifiers', help='Group similar identifiers in the plot with similar colors',
                         default=1, type=int)
 

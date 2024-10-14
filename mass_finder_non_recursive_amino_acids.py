@@ -331,7 +331,7 @@ def relative_abundances(plot_list):
 
 
 
-def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range, min_intensity, group_identifiers):
+def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range, min_intensity):
     # Plot the analyzed spectra in a single graph
 
     # calculate the logarithm of the minimal intensity
@@ -345,21 +345,7 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     sorted_unique_identifiers = sorted_df['formula'].drop_duplicates().tolist()
     num_identifiers = len(sorted_unique_identifiers)
 
-    # Generate a custom colormap with a varying number of colors
-    # check if the number of identifiers is divisible by the number of group identifiers
-    if num_identifiers % group_identifiers != 0:
-        raise ValueError('The number of identifiers must be divisible by the number of similar groups')
-    # calculate the number of groups
-    num_groups = num_identifiers // group_identifiers
 
-    colors = np.array([]).reshape(0, 4)
-    # Generate a list of colors using the rainbow colormap based on the number of unique identifiers
-    for i in range(num_groups):
-        for j in range(group_identifiers):
-            color_distribution = ((i + 1 / group_identifiers) / num_groups + j / (
-                        2 * (num_groups + group_identifiers)))
-            colors = np.append(colors, [plt.cm.rainbow(color_distribution)], axis=0)
-    inverted_colors = colors[::-1]
 
     suffix = 0
     if not overwrite:
@@ -568,8 +554,6 @@ def main():
                         action='store_true')
     parser.add_argument('-plot_time_range', help='Time range to use for plotting', default='0-30', type=str)
     parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='200-2000', type=str)
-    parser.add_argument('-plot_group_identifiers', help='Group similar identifiers in the plot with similar colors', default=1, type=int)
-
     args = parser.parse_args()
 
     # Print boundary
@@ -667,7 +651,7 @@ def main():
                            args.plot_time_range.split('-')]
         plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
         plot_results(analyzed_spectra, os.path.splitext(input_file)[0], plot_time_range, plot_mass_range,
-                           args.overwrite, full_range, args.min_intensity, args.plot_group_identifiers)
+                           args.overwrite, full_range, args.min_intensity)
     pool.close()
 
 

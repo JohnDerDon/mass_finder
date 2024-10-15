@@ -73,13 +73,13 @@ def analyze_mass_spec(spectrum, mass_range, time_range, min_intensity):
     })
 
 
-def generate_plot_dataframe(analyzed_spectra, ppm_range):
+def generate_plot_dataframe(analyzed_spectra, ppm_binning):
     """
     Create a DataFrame for plotting by summing the intensities of masses within the specified ppm range.
     Normalizes the total_intensity values by setting the highest total_intensity to 1.
     Adds a column that indicates whether a mass is the highest intensity in its 0.6 Da range, labeled as True or False.
     :param analyzed_spectra: List of DataFrames containing analyzed spectra.
-    :param ppm_range: PPM range for mass binning.
+    :param ppm_binning: PPM range for mass binning.
     :return: DataFrame of summed masses, normalized intensities, and a label.
     """
     # Concatenate all spectra and sort by intensity
@@ -97,8 +97,8 @@ def generate_plot_dataframe(analyzed_spectra, ppm_range):
         current_mass = row['experimental_mass']
         current_intensity = row['intensity']
 
-        mass_range_low = current_mass * (1 - ppm_range / 1_000_000)
-        mass_range_high = current_mass * (1 + ppm_range / 1_000_000)
+        mass_range_low = current_mass * (1 - ppm_binning / 1_000_000)
+        mass_range_high = current_mass * (1 + ppm_binning / 1_000_000)
 
         # Create mask to select masses within the ppm range
         mask = (all_spectra_dataframe['experimental_mass'] >= mass_range_low) & \
@@ -111,7 +111,7 @@ def generate_plot_dataframe(analyzed_spectra, ppm_range):
         result_rows.append({
             'mass': highest_mass,
             'total_intensity': total_intensity,
-            'charge_state': 0
+            'charge_state': 'x'
         })
 
         used_masses[mask] = True
@@ -148,11 +148,119 @@ def generate_plot_dataframe(analyzed_spectra, ppm_range):
     # Add the new column to the DataFrame
     result_df['label'] = labels
 
+    print("Result DataFrame:")
+    print(result_df)
+
     return result_df
 
 
-def choose_plot_color(input_plot_color):
+def generate_plot_dataframe_with_charge_states(plot_dataframe, charge_range, ppm_charge_state, plot_label_intensity):
+    """
+    Generate a DataFrame with charge states assigned based on the provided DataFrame.
+    :param plot_dataframe: DataFrame containing the mass, intensity, and normalized intensity data to plot.
+    :param charge_range: Range of charge states to consider.
+    :param ppm_charge_state: PPM range for charge state determination.
+    :param plot_label_intensity: Minimum intensity threshold for labeling.
+    :return: DataFrame with charge states assigned.
+    """
+    plot_dataframe_charge_states = plot_dataframe.copy()
+    # Iterate over peaks to determine charge states
+    for index, row in plot_dataframe_charge_states.iterrows():
+        if row['charge_state'] != 'x':
+            continue  # Skip if this peak has already been assigned a charge state
 
+        if row['normalized_intensity'] > plot_label_intensity and row['label']:
+            mz_main = row['mass']
+        else:
+            continue # Skip if the intensity is below the threshold
+
+
+        # Check for possible charge states starting from the highest
+        for charge in range(charge_range[1], charge_range[0] - 1, -1):
+            candidate_peaks = []  # Start with an empty list for candidate peaks
+            is_matched = False
+
+            # Append the main peak (highest intensity being evaluated) first
+            candidate_peaks.append(row)
+
+            # Look left and right for peaks to match the expected pattern
+            for direction in [-1, 1]:  # -1 to look left, 1 to look right
+                mz_current = mz_main
+
+                while True:
+                    expected_diff = 1.0 / charge
+                    mz_expected = mz_current + direction * expected_diff
+
+                    # Check for peaks that are close to the expected m/z value and are unassigned
+                    matched_row = plot_dataframe_charge_states[
+                        (np.abs(plot_dataframe_charge_states['mass'] - mz_expected) < mz_expected * ppm_charge_state / 1_000_000)
+                        & (plot_dataframe_charge_states['charge_state'] == 'x')]
+
+                    if not matched_row.empty:
+                        closest_match = matched_row.iloc[0]
+                        candidate_peaks.append(closest_match)  # Add to candidate peaks
+                        mz_current = closest_match['mass']  # Update to continue searching
+                    else:
+                        break  # Stop if no match found in this direction
+
+            # Sort candidate peaks by m/z to ensure proper order
+            candidate_peaks = sorted(candidate_peaks, key=lambda x: x['mass'])
+
+            print(f"Charge: {charge}, Candidate Peaks:")
+            print(candidate_peaks)
+
+            # Ensure no peaks with an existing charge state are in candidate_peaks
+            candidate_peaks = [peak for peak in candidate_peaks if plot_dataframe_charge_states.at[peak.name, 'charge_state'] == 'x']
+
+            # Find the peak with the highest intensity in the candidate list
+            if not candidate_peaks:
+                continue  # No valid candidates, move to the next charge
+
+            highest_intensity_peak = max(candidate_peaks, key=lambda x: x['total_intensity'])
+            highest_index = next(i for i, peak in enumerate(candidate_peaks) if peak['mass'] == highest_intensity_peak['mass'])
+
+            # Check if the candidate peaks show a general decreasing intensity trend from the highest point
+            if len(candidate_peaks) > 1:
+                intensities_left = [peak['total_intensity'] for peak in candidate_peaks[:highest_index + 1][::-1]]
+                intensities_right = [peak['total_intensity'] for peak in candidate_peaks[highest_index:]]
+
+                print(f"Intensities Left: {intensities_left}")
+                print(f"Intensities Right: {intensities_right}")
+
+                decrease_count_left = sum(intensities_left[i] >= intensities_left[i + 1] for i in range(len(intensities_left) - 1))
+                decrease_count_right = sum(intensities_right[i] >= intensities_right[i + 1] for i in range(len(intensities_right) - 1))
+
+                # Sum up total decrease and increase counts
+                total_decrease_count = decrease_count_left + decrease_count_right
+
+                print(f"Total Decrease Count: {total_decrease_count}")
+                print(f"Total Peaks: {len(candidate_peaks)}")
+
+                # Allow a soft requirement: mostly decreasing with some flexibility
+                if total_decrease_count >= (len(candidate_peaks) - 1) * 0.8:
+                    # Assign the charge state if a mostly decreasing pattern is found
+                    for peak in candidate_peaks:
+                        plot_dataframe_charge_states.at[peak.name, 'charge_state'] = charge
+                    is_matched = True
+                else:
+                    # Mark these peaks as checked but not assigned
+                    for peak in candidate_peaks:
+                        plot_dataframe_charge_states.at[peak.name, 'charge_state'] = 0
+
+            # If a valid charge state was determined, no need to check lower charges
+            if is_matched:
+                break
+
+    print("Result DataFrame with Charge States:")
+    print(plot_dataframe_charge_states)
+
+    return plot_dataframe_charge_states
+
+
+def choose_plot_color(input_plot_color):
+    """
+    Choose a color based on the input color identifier.
+    """
     # Define the updated color palette
     color_data = {
         "Color Identifier": [
@@ -231,7 +339,7 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
             plt.text(
                 row['mass'],  # x-coordinate (mass)
                 row['total_intensity'] + (0.02 * max_intensity),  # y-coordinate slightly above the bar
-                f'{row["mass"]:.4f}',  # Text label (mass value)
+                f'{row["mass"]:.4f}\nz = {row["charge_state"]}',  # Text label (mass value)
                 ha='center',  # Center the text horizontally
                 va='bottom',  # Position text below the y-coordinate
                 fontsize=8,  # Font size
@@ -261,7 +369,12 @@ def main():
     parser.add_argument('-time_range', help='Set a custom time range. Example: 3-10 minutes.', type=str,
                         default='0-1000')
     parser.add_argument('-mass_range', help='Set a custom mass range. Example: 200-600.', type=str, default='200-2000')
-    parser.add_argument('-ppm_range', help='Set a custom ppm range for binning masses. Example: 10.', type=str,
+    parser.add_argument('-charge_range',
+                        help='Set a custom charge range to analyze peaks. Example: 1-5.',
+                        type=str, default='1-20')
+    parser.add_argument('-ppm_binning', help='Set a custom ppm range for binning masses. Example: 10.', type=str,
+                        default='10')
+    parser.add_argument('-ppm_charge_state', help='Set a custom ppm range for the charge state determination. Example: 10.', type=str,
                         default='10')
     parser.add_argument('-overwrite', help='If true, existing plots will be overwritten.', action='store_true')
     parser.add_argument('-full_range', help='If true, plot will span the entire time and mass range.',
@@ -269,7 +382,7 @@ def main():
     parser.add_argument('-plot_intensity_range', help='Intensity range to use for plotting', default='0-1', type=str)
     parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='0-1', type=str)
     parser.add_argument('-plot_color', help='Define the plot color. Example: Gray1.', default='Gray1', type=str)
-    parser.add_argument('-plot_label_intensity', help='Minimum intensity of the mass labels that is still plotted in %', default='10', type=str)
+    parser.add_argument('-plot_label_intensity', help='Minimum intensity of the mass labels that is still plotted. Example: 0.1', default='0.1', type=str)
     parser.add_argument('-plot_group_identifiers', help='Group similar identifiers in the plot with similar colors',
                         default=1, type=int)
 
@@ -291,8 +404,9 @@ def main():
 
     mass_range = [float(mass) for mass in args.mass_range.split('-')]
     time_range = [float(time) for time in args.time_range.split('-')]
-    ppm_range = float(args.ppm_range)
-    label_intensity_threshold = float(args.plot_label_intensity) / 100
+    charge_range = [int(charge) for charge in args.charge_range.split('-')]
+    ppm_binning = float(args.ppm_binning)
+    label_intensity_threshold = float(args.plot_label_intensity)
 
     # Analyze each file and write output
     with mp.Pool(args.threads) as pool:
@@ -312,7 +426,8 @@ def main():
 
             plot_intensity_range = [float(intensity) for intensity in args.plot_intensity_range.split('-')]
             plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
-            plot_dataframe = generate_plot_dataframe(analyzed_spectra, ppm_range)
+            plot_dataframe = generate_plot_dataframe_with_charge_states(generate_plot_dataframe(analyzed_spectra, ppm_binning),
+                                                                        charge_range , float(args.ppm_charge_state), label_intensity_threshold)
 
             sys.stdout.write(f"\tFound {len(plot_dataframe)} unique masses for plotting.\n")
             plot_results(plot_dataframe, os.path.splitext(input_file)[0], plot_mass_range, plot_intensity_range,

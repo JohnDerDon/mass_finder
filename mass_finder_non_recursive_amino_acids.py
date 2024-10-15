@@ -534,6 +534,8 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
 
     max_values = plot_list.groupby('formula')['intensity'].max()  # Get the maximum intensity for each identifier
     max_values_sorted = max_values.sort_values(ascending=False)
+    max_intensity_overall = 0
+
     # Create a zorder for the identifiers based on their maximum intensity
     identifier_zorder = {identifier: i for i, identifier in enumerate(max_values_sorted.index)}
 
@@ -571,14 +573,32 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
         intensities.append(min_intensity)
         intensities.append(min_intensity)
 
+        max_intensity_identifier = max(intensities)
+        if max_intensity_identifier > max_intensity_overall:
+            max_intensity_overall = max_intensity_identifier
+
         ax_XIC.plot(times, intensities, color=color, linewidth=1.5, label=f'{identifier}', zorder=identifier_zorder[identifier])
+
+        # Find the index of the maximum intensity for the current identifier
+        max_idx = plot_list.loc[plot_list['formula'] == identifier, 'intensity'].idxmax()
+        max_retention_time = plot_list.at[max_idx, 'time']
+
+        # Annotate the maximum intensity point
+        ax_XIC.annotate(f'{max_retention_time:.2f}',
+                        xy=(max_retention_time, max_intensity_identifier),
+                        ha='center',
+                        va='bottom',
+                        fontsize=10,
+                        color=color)
 
     # label specifications
     ax_XIC.set_xlabel('Time (min)', fontsize=18)
     ax_XIC.set_ylabel('Intensity', fontsize=18)
     ax_XIC.tick_params(axis='both', which='major', labelsize=14)
 
-    # check if full_range is true, otherwise adapt range
+    ax_XIC.set_ylim(0, max_intensity_overall * 1.05)
+
+    # check if full_range is true, otherwise adapt time range
     if full_range:
         ax_XIC.set_xlim((min(time_range), max(time_range)))
     else:

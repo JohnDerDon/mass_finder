@@ -109,7 +109,8 @@ def generate_plot_dataframe(analyzed_spectra, ppm_range):
 
         result_rows.append({
             'mass': highest_mass,
-            'total_intensity': total_intensity
+            'total_intensity': total_intensity,
+            'charge_state': 0
         })
 
         used_masses[mask] = True
@@ -151,7 +152,36 @@ def generate_plot_dataframe(analyzed_spectra, ppm_range):
     return result_df
 
 
-def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_range, intensity_threshold, overwrite):
+def choose_plot_color(input_plot_color):
+
+    # Define the updated color palette
+    color_data = {
+        "Color Identifier": [
+            "Pink1", "Pink2", "Pink3", "Pink4", "Pink5", "Pink6",
+            "Gray1", "Gray2", "Gray3", "Gray4", "Gray5", "Gray6",
+            "Yellow1", "Yellow2", "Yellow3", "Yellow4", "Yellow5", "Yellow6",
+            "Green1", "Green2", "Green3", "Green4", "Green5", "Green6",
+            "Blue1", "Blue2", "Blue3", "Blue4", "Blue5", "Blue6",
+            "Red1", "Red2", "Red3", "Red4", "Red5", "Red6"
+        ],
+        "Hex Code": [
+            "#FF36D7", "#FF1A9A", "#FF66D9", "#FF66B2", "#FF99CC", "#FFB3E6",  # Pink shades
+            "#000000", "#1A1A1A", "#333333", "#4D4D4D", "#666666", "#808080",  # Grays, with Gray1 as black
+            "#FFD700", "#FFC700", "#FFE700", "#FFF700", "#FFF300", "#FFEC00",  # Yellow shades
+            "#2ECC40", "#28B600", "#1D9A00", "#009900", "#007700", "#005500",  # Adjusted Green shades
+            "#3498DB", "#2980B9", "#1E88E5", "#007BB8", "#005EB8", "#004B9A",  # Adjusted Blue shades
+            "#E74C3C", "#C0392B", "#D50000", "#A50000", "#FF5733", "#FF3333"  # Red shades
+        ]
+    }
+
+    # Create the DataFrame
+    colors = pd.DataFrame(color_data)
+
+    return colors.loc[colors['Color Identifier'] == input_plot_color, 'Hex Code'].values[0]
+
+
+def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_range, intensity_threshold, plot_color,
+                 overwrite):
     """
     Plot the analyzed spectra based on the provided DataFrame.
     Display the mass values on top of each intensity bar only if the conditions are met:
@@ -160,16 +190,19 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
 
     :param plot_dataframe: DataFrame containing the mass, intensity, normalized intensity, and label data to plot.
     :param output_file: Path for saving the plot.
-    :param plot_mass_range: Mass range for the plot, or 'X' for lower limit and 'Y' for upper limit to use default.
-    :param plot_intensity_range: Intensity range for the plot, or 'X' for lower limit and 'Y' for upper limit to use default.
+    :param plot_mass_range: Mass range for the plot, or '0' for lower limit and '1' for upper limit to use default.
+    :param plot_intensity_range: Intensity range for the plot, or '0' for lower limit and '1' for upper limit to use default.
     :param overwrite: Boolean to determine if existing plots should be overwritten.
     :param intensity_threshold: Threshold for normalized_intensity to decide which peaks to label.
     """
     plt.figure(figsize=(10, 6))
 
     # Create the bar plot
-    plt.bar(plot_dataframe['mass'], plot_dataframe['total_intensity'], width=0.5, color='blue', alpha=0.7)
-    plt.title('Mass Spectrum')
+    plt.bar(plot_dataframe['mass'], plot_dataframe['total_intensity'], width=0.2, color=plot_color, alpha=0.7)
+
+    # Use the base file name as the title
+    file_name = os.path.basename(output_file)
+    plt.title(f"{file_name}")
     plt.xlabel('Mass (m/z)')
     plt.ylabel('Intensity')
 
@@ -180,7 +213,7 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
 
     # Set x-axis limits based on plot_mass_range or calculated values
     if plot_mass_range[0] == 0.0 and plot_mass_range[1] == 1.0:
-        plt.xlim(min_mass, max_mass * 1.1)
+        plt.xlim(min_mass - (max_mass - min_mass) * 0.1, max_mass + (max_mass - min_mass) * 0.1)
     else:
         plt.xlim(plot_mass_range)
 
@@ -205,11 +238,10 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
 
     # Customizing ticks
     plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
-    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{int(x):,}'))
-
-    # Add grid and legend
-    plt.grid(True)
-    plt.legend(['Intensity'])
+    plt.gca().yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
+    plt.gca().yaxis.get_offset_text().set_fontsize(10)
+    plt.gca().yaxis.set_minor_formatter(ticker.ScalarFormatter(useMathText=True))
+    plt.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
 
     # Save plot
     plot_file_path = append_suffix_to_file(output_file, overwrite)
@@ -234,6 +266,7 @@ def main():
                         action='store_true')
     parser.add_argument('-plot_intensity_range', help='Intensity range to use for plotting', default='0-1', type=str)
     parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='0-1', type=str)
+    parser.add_argument('-plot_color', help='Define the plot color. Example: Gray1.', default='Gray1', type=str)
     parser.add_argument('-plot_label_intensity', help='Minimum intensity of the mass labels that is still plotted in %', default='10', type=str)
     parser.add_argument('-plot_group_identifiers', help='Group similar identifiers in the plot with similar colors',
                         default=1, type=int)
@@ -259,9 +292,6 @@ def main():
     ppm_range = float(args.ppm_range)
     label_intensity_threshold = float(args.plot_label_intensity) / 100
 
-    # Check for full_range logic
-    full_range = args.full_range or (args.plot_intensity_range != '0-1e9' or args.plot_mass_range != '200-2000')
-
     # Analyze each file and write output
     with mp.Pool(args.threads) as pool:
         for input_file in mzxml_files:
@@ -284,7 +314,7 @@ def main():
 
             sys.stdout.write(f"\tFound {len(plot_dataframe)} unique masses for plotting.\n")
             plot_results(plot_dataframe, os.path.splitext(input_file)[0], plot_mass_range, plot_intensity_range,
-                         label_intensity_threshold, args.overwrite)
+                         label_intensity_threshold, choose_plot_color(args.plot_color), args.overwrite)
 
     sys.stdout.write(f"{''.join(['=' for _ in range(20)])}\n")
 

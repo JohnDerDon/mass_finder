@@ -13,6 +13,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import matplotlib.patches as mpatches
 from pyteomics import mzxml
 import multiprocess as mp
 
@@ -147,8 +148,6 @@ def generate_plot_dataframe(analyzed_spectra, ppm_range):
     # Add the new column to the DataFrame
     result_df['label'] = labels
 
-    print(result_df)
-
     return result_df
 
 
@@ -181,7 +180,7 @@ def choose_plot_color(input_plot_color):
 
 
 def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_range, intensity_threshold, plot_color,
-                 overwrite):
+                 time_range, overwrite):
     """
     Plot the analyzed spectra based on the provided DataFrame.
     Display the mass values on top of each intensity bar only if the conditions are met:
@@ -205,6 +204,9 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
     plt.title(f"{file_name}")
     plt.xlabel('Mass (m/z)')
     plt.ylabel('Intensity')
+
+    # Adding a legend without outline or color indication
+    plt.legend(handles=[mpatches.Patch(color='none', label=f"RT: {time_range[0]:.2f} - {time_range[1]:.2f}")], loc='upper right', frameon=False)  # frameon=False removes the box around the legend
 
     # Determine mass and intensity limits
     min_mass = plot_dataframe['mass'].min()
@@ -314,7 +316,7 @@ def main():
 
             sys.stdout.write(f"\tFound {len(plot_dataframe)} unique masses for plotting.\n")
             plot_results(plot_dataframe, os.path.splitext(input_file)[0], plot_mass_range, plot_intensity_range,
-                         label_intensity_threshold, choose_plot_color(args.plot_color), args.overwrite)
+                         label_intensity_threshold, choose_plot_color(args.plot_color), time_range, args.overwrite)
 
     sys.stdout.write(f"{''.join(['=' for _ in range(20)])}\n")
 

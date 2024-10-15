@@ -329,7 +329,7 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
 
     # Set y-axis limits based on plot_intensity_range or calculated values
     if plot_intensity_range[0] == 0.0 and plot_intensity_range[1] == 1.0:
-        plt.ylim(0, max_intensity * 1.2)
+        plt.ylim(0, max_intensity * 1.1)
     else:
         plt.ylim(plot_intensity_range)
 
@@ -342,8 +342,7 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
                 f'{row["mass"]:.4f}\nz = {row["charge_state"]}',  # Text label (mass value)
                 ha='center',  # Center the text horizontally
                 va='bottom',  # Position text below the y-coordinate
-                fontsize=8,  # Font size
-                rotation=45  # Rotate the text slightly for readability
+                fontsize=10  # Font size
             )
 
     # Customizing ticks

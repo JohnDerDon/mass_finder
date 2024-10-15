@@ -8,6 +8,7 @@ April 2024
 from pyteomics import mzxml
 import os
 import sys
+import re
 import argparse
 import multiprocess as mp
 import pandas as pd
@@ -22,6 +23,7 @@ import matplotlib.patches as mpatches
 from pyteomics import mass as pymass
 from scipy import constants
 from textwrap import wrap
+
 
 
 def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
@@ -343,10 +345,80 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     sorted_df = plot_list[['formula', 'parent_mass']].sort_values(by='parent_mass')
     # Get the sorted unique identifiers as a list
     sorted_unique_identifiers = sorted_df['formula'].drop_duplicates().tolist()
-    num_identifiers = len(sorted_unique_identifiers)
 
+    # Define the colors for the plot
+    # Define the color palette
+    color_data = {
+        "Color Identifier": [
+            "Pink1", "Pink2", "Pink3", "Pink4", "Pink5", "Pink6",
+            "Gray1", "Gray2", "Gray3", "Gray4", "Gray5", "Gray6",
+            "Yellow1", "Yellow2", "Yellow3", "Yellow4", "Yellow5", "Yellow6",
+            "Green1", "Green2", "Green3", "Green4", "Green5", "Green6",
+            "Blue1", "Blue2", "Blue3", "Blue4", "Blue5", "Blue6",
+            "Red1", "Red2", "Red3", "Red4", "Red5", "Red6"
+        ],
+        "Hex Code": [
+            "#FF36D7", "#FF1A9A", "#FF66D9", "#FF66B2", "#FF99CC", "#FFB3E6",  # Pink shades
+            "#000000", "#1A1A1A", "#333333", "#4D4D4D", "#666666", "#808080",  # Grays, with Gray1 as black
+            "#FFD700", "#FFC700", "#FFE700", "#FFF700", "#FFF300", "#FFEC00",  # Yellow shades
+            "#2ECC40", "#28B600", "#1D9A00", "#009900", "#007700", "#005500",  # Adjusted Green shades
+            "#3498DB", "#2980B9", "#1E88E5", "#007BB8", "#005EB8", "#004B9A",  # Adjusted Blue shades
+            "#E74C3C", "#C0392B", "#D50000", "#A50000", "#FF5733", "#FF3333"  # Red shades
+        ]
+    }
 
+    # Create the DataFrame
+    color_df = pd.DataFrame(color_data)
 
+    # Assign a color to each unique identifier
+    colors = []
+
+    # Initialize indices to track which colors to use
+    gray_index = 6  # Start at Gray1 (index 6 in the list)
+    pink_index = 0  # Start at Pink1
+    yellow_index = 12  # Start at Yellow1
+    red_index = 30  # Start at Red1
+    green_index = 18  # Start at Green1
+    blue_index = 24  # Start at Blue1
+
+    # Helper function to determine if part is an amino acid sequence
+    def is_amino_acid_sequence(part):
+        return all(char in "ACDEFGHIKLMNPQRSTVWY" for char in part) and len(part) > 1
+
+    # Helper function to check for fatty acid pattern
+    def is_fatty_acid_pattern(part):
+        # Check if there is a match for the fatty acid moiety pattern
+        return re.match(r"C\d+H\d+O\d+", part) is not None
+
+    # Assign colors based on conditions
+    pink_index = 0
+    gray_index = 0
+    blue_index = 0
+
+    for identifier in sorted_unique_identifiers:
+        # Split the identifier by the pattern (X) where X is a digit, e.g., (1), (2), etc.
+        parts = re.split(r'\(\d+\)', identifier)
+
+        # Check if any part matches the fatty acid condition (priority)
+        if any(is_fatty_acid_pattern(part) for part in parts):
+            # Assign pink color
+            color = color_df[color_df["Color Identifier"] == f"Pink{pink_index + 1}"]["Hex Code"].values[0]
+            pink_index = (pink_index + 1) % 6  # Loop through Pink1 to Pink6
+        # Check if any part matches the amino acid condition
+        elif any(is_amino_acid_sequence(part) for part in parts):
+            # Assign gray color
+            color = color_df[color_df["Color Identifier"] == f"Gray{gray_index + 1}"]["Hex Code"].values[0]
+            gray_index = (gray_index + 1) % 6  # Loop through Gray1 to Gray6
+        # if none of the above conditions are met, assign blue colors based on the index
+        else:
+            # Assign blue color
+            color = color_df[color_df["Color Identifier"] == f"Blue{blue_index + 1}"]["Hex Code"].values[0]
+            blue_index = (blue_index + 1) % 6  # Loop through Blue1 to Blue6
+
+        # Append the selected color
+        colors.append(color)
+
+    #
     suffix = 0
     if not overwrite:
         if os.path.isfile(output_file + '.svg'):
@@ -356,7 +428,7 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
 
     # Plot the results
     plot_results_subplots(plot_list, output_file, time_range, mass_range, full_range, sorted_unique_identifiers,
-                          inverted_colors, log_min_intensity, suffix, min_intensity)
+                          colors, log_min_intensity, suffix, min_intensity)
 
 
 def plot_results_subplots(plot_list, output_file, time_range, mass_range,

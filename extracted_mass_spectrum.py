@@ -148,9 +148,6 @@ def generate_plot_dataframe(analyzed_spectra, ppm_binning):
     # Add the new column to the DataFrame
     result_df['label'] = labels
 
-    print("Result DataFrame:")
-    print(result_df)
-
     return result_df
 
 
@@ -206,9 +203,6 @@ def generate_plot_dataframe_with_charge_states(plot_dataframe, charge_range, ppm
             # Sort candidate peaks by m/z to ensure proper order
             candidate_peaks = sorted(candidate_peaks, key=lambda x: x['mass'])
 
-            print(f"Charge: {charge}, Candidate Peaks:")
-            print(candidate_peaks)
-
             # Ensure no peaks with an existing charge state are in candidate_peaks
             candidate_peaks = [peak for peak in candidate_peaks if plot_dataframe_charge_states.at[peak.name, 'charge_state'] == 'x']
 
@@ -224,18 +218,11 @@ def generate_plot_dataframe_with_charge_states(plot_dataframe, charge_range, ppm
                 intensities_left = [peak['total_intensity'] for peak in candidate_peaks[:highest_index + 1][::-1]]
                 intensities_right = [peak['total_intensity'] for peak in candidate_peaks[highest_index:]]
 
-                print(f"Intensities Left: {intensities_left}")
-                print(f"Intensities Right: {intensities_right}")
-
                 decrease_count_left = sum(intensities_left[i] >= intensities_left[i + 1] for i in range(len(intensities_left) - 1))
                 decrease_count_right = sum(intensities_right[i] >= intensities_right[i + 1] for i in range(len(intensities_right) - 1))
 
                 # Sum up total decrease and increase counts
                 total_decrease_count = decrease_count_left + decrease_count_right
-
-                print(f"Total Decrease Count: {total_decrease_count}")
-                print(f"Total Peaks: {len(candidate_peaks)}")
-
                 # Allow a soft requirement: mostly decreasing with some flexibility
                 if total_decrease_count >= (len(candidate_peaks) - 1) * 0.8:
                     # Assign the charge state if a mostly decreasing pattern is found
@@ -250,9 +237,6 @@ def generate_plot_dataframe_with_charge_states(plot_dataframe, charge_range, ppm
             # If a valid charge state was determined, no need to check lower charges
             if is_matched:
                 break
-
-    print("Result DataFrame with Charge States:")
-    print(plot_dataframe_charge_states)
 
     return plot_dataframe_charge_states
 

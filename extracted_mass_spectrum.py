@@ -272,7 +272,7 @@ def choose_plot_color(input_plot_color):
 
 
 def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_range, intensity_threshold, plot_color,
-                 time_range, overwrite):
+                 plot_bar_width, time_range, overwrite):
     """
     Plot the analyzed spectra based on the provided DataFrame.
     Display the mass values on top of each intensity bar only if the conditions are met:
@@ -289,7 +289,7 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
     plt.figure(figsize=(10, 6))
 
     # Create the bar plot
-    plt.bar(plot_dataframe['mass'], plot_dataframe['total_intensity'], width=0.2, color=plot_color, alpha=0.7)
+    plt.bar(plot_dataframe['mass'], plot_dataframe['total_intensity'], width=plot_bar_width, color=plot_color, alpha=0.7)
 
     # Use the base file name as the title
     file_name = os.path.basename(output_file)
@@ -365,6 +365,7 @@ def main():
     parser.add_argument('-plot_intensity_range', help='Intensity range to use for plotting', default='0-1', type=str)
     parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='0-1', type=str)
     parser.add_argument('-plot_color', help='Define the plot color. Example: Gray1.', default='Gray1', type=str)
+    parser.add_argument('-plot_bar_width', help='Width of the plotted bars for the mass peaks. Example: 0.5', default='0.5', type=str)
     parser.add_argument('-plot_label_intensity', help='Minimum intensity of the mass labels that is still plotted. Example: 0.1', default='0.1', type=str)
     parser.add_argument('-plot_group_identifiers', help='Group similar identifiers in the plot with similar colors',
                         default=1, type=int)
@@ -414,7 +415,8 @@ def main():
 
             sys.stdout.write(f"\tFound {len(plot_dataframe)} unique masses for plotting.\n")
             plot_results(plot_dataframe, os.path.splitext(input_file)[0], plot_mass_range, plot_intensity_range,
-                         label_intensity_threshold, choose_plot_color(args.plot_color), time_range, args.overwrite)
+                         label_intensity_threshold, choose_plot_color(args.plot_color), float(args.plot_bar_width),
+                         time_range, args.overwrite)
 
     sys.stdout.write(f"{''.join(['=' for _ in range(20)])}\n")
 

@@ -434,16 +434,16 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
 def plot_results_subplots(plot_list, output_file, time_range, mass_range,
                           full_range, sorted_unique_identifiers, colors, log_min_intensity, suffix, min_intensity):
     # Define the plot
-    fig = plt.figure(figsize=(16, 16))
+    fig = plt.figure(figsize=(18, 10))
     # Define the title of the plot
     fig.suptitle(os.path.splitext(os.path.basename(output_file))[0], fontsize=22)
 
     # Create a grid for the subplots
-    gs = fig.add_gridspec(2, 5, width_ratios=[2, 1, 12, 2, 2], height_ratios=[1, 1])
+    gs = fig.add_gridspec(3, 5, width_ratios=[1, 1, 12, 2, 2], height_ratios=[10, 1, 10])
     ax_abundance = fig.add_subplot(gs[0:, 0])
     ax_XIC = fig.add_subplot(gs[0, 2])
-    ax_scatter = fig.add_subplot(gs[1, 2])
-    ax_colorbar = fig.add_subplot(gs[1, 3])
+    ax_scatter = fig.add_subplot(gs[2, 2])
+    ax_colorbar = fig.add_subplot(gs[2, 3])
     ax_colorbar.axis('off')
     ax_legend = fig.add_subplot(gs[0, 3:])
     ax_legend.axis('off')
@@ -469,23 +469,41 @@ def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors,
     # Define the abundance plot on the abundance axis
     abundances = relative_abundances(plot_list)
 
+    # Convert abundances to percentages
+    total_abundance = sum(abundances.values())
+    percentage_abundances = {identifier: (value / total_abundance) * 100 for identifier, value in abundances.items()}
+
     # Combine all intensities into a single array for stacking
-    stacked_intensities = [abundances[sorted_unique_identifiers[0]]]
+    stacked_intensities = [percentage_abundances[sorted_unique_identifiers[0]]]
     for i in range(len(sorted_unique_identifiers) - 1):
         formula2 = sorted_unique_identifiers[i + 1]
-        stacked_intensity = stacked_intensities[i] + abundances[formula2]
+        stacked_intensity = stacked_intensities[i] + percentage_abundances[formula2]
         stacked_intensities.append(stacked_intensity)
 
     # Reverse the order of the intensities & the colors for the stacked bar plot
     stacked_intensities = stacked_intensities[::-1]
     colors = colors[::-1]
+    reversed_identifiers = sorted_unique_identifiers[::-1]
 
     # Plot a stacked bar in reverse order
-    ax_abundance.bar(0, stacked_intensities, align='center', color=colors)
+    bars = ax_abundance.bar(0, stacked_intensities, align='center', color=colors)
+
+    # Add percentage text inside each bar
+    cumulative_percentage = 0
+    for percentage, bar, identifier in zip(percentage_abundances.values(), bars, reversed_identifiers):
+        rounded_percentage = round(percentage)  # Round to the nearest whole number
+
+        # Update the cumulative percentage
+        cumulative_percentage += percentage
+
+        # Position the text at the middle of each segment based on cumulative height
+        ax_abundance.text(0, cumulative_percentage - (percentage / 2),
+                          f'{rounded_percentage}%', ha='center', va='center', color='white', fontsize=14)
 
     ax_abundance.set_xticks([])  # Hide x-axis ticks
-    ax_abundance.tick_params(axis='y', which='major', labelsize=14)
-    ax_abundance.set_ylabel('Relative Abundance', fontsize=18)
+    ax_abundance.tick_params(axis='y', which='major', labelsize=18)
+    ax_abundance.set_ylabel('Relative Abundance (%)', fontsize=18)
+    ax_abundance.set_ylim(0, 100)
 
 
 def plot_scatter(ax_scatter, plot_list, time_range, mass_range,
@@ -504,7 +522,7 @@ def plot_scatter(ax_scatter, plot_list, time_range, mass_range,
     # label specifications
     ax_scatter.set_xlabel('Time (min)', fontsize=18)
     ax_scatter.set_ylabel('m/z', fontsize=18)
-    ax_scatter.tick_params(axis='both', which='major', labelsize=14)
+    ax_scatter.tick_params(axis='both', which='major', labelsize=18)
 
     # check if full_range is true, otherwise adapt range
     if full_range:
@@ -523,7 +541,7 @@ def plot_scatter(ax_scatter, plot_list, time_range, mass_range,
     # Add a color bar representing intensity values shifted to the left of the plot
     cbar = plt.colorbar(alpha_sm, ax=ax_colorbar,  orientation='vertical')
     cbar.ax.set_ylabel('log(intensity)', rotation=270, labelpad=20, fontsize=18)
-    cbar.ax.tick_params(labelsize=14)
+    cbar.ax.tick_params(labelsize=18)
 
     # Set ticks on the colorbar with increments of 1
     cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
@@ -588,23 +606,21 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
                         xy=(max_retention_time, max_intensity_identifier),
                         ha='center',
                         va='bottom',
-                        fontsize=10,
+                        fontsize=14,
                         color=color)
 
     # label specifications
     ax_XIC.set_xlabel('Time (min)', fontsize=18)
     ax_XIC.set_ylabel('Intensity', fontsize=18)
-    ax_XIC.tick_params(axis='both', which='major', labelsize=14)
+    ax_XIC.tick_params(axis='both', which='major', labelsize=18)
 
-    ax_XIC.set_ylim(0, max_intensity_overall * 1.05)
+    ax_XIC.set_ylim(0, max_intensity_overall * 1.1)
 
     # check if full_range is true, otherwise adapt time range
     if full_range:
         ax_XIC.set_xlim((min(time_range), max(time_range)))
     else:
         ax_XIC.set_xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
-
-    ax_XIC.grid(which='both', alpha=0.3)
 
     # Create legend with custom font color
     patches = []

@@ -286,19 +286,22 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
     :param overwrite: Boolean to determine if existing plots should be overwritten.
     :param intensity_threshold: Threshold for normalized_intensity to decide which peaks to label.
     """
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 4))
 
     # Create the bar plot
     plt.bar(plot_dataframe['mass'], plot_dataframe['total_intensity'], width=plot_bar_width, color=plot_color, alpha=0.7)
 
     # Use the base file name as the title
     file_name = os.path.basename(output_file)
-    plt.title(f"{file_name}")
-    plt.xlabel('Mass (m/z)')
-    plt.ylabel('Intensity')
+    plt.title(f"{file_name}", fontsize=22)
+    plt.xlabel('Mass (m/z)', fontsize=18)
+    plt.ylabel('Intensity', fontsize=18)
 
     # Adding a legend without outline or color indication
-    plt.legend(handles=[mpatches.Patch(color='none', label=f"RT: {time_range[0]:.2f} - {time_range[1]:.2f}")], loc='upper right', frameon=False)  # frameon=False removes the box around the legend
+    plt.legend(handles=[mpatches.Patch(color='none',
+                                       label=f"RT: {time_range[0]:.2f} - {time_range[1]:.2f}")],
+               loc='upper right',
+               frameon=False, fontsize=18)  # Adjust font size
 
     # Determine mass and intensity limits
     min_mass = plot_dataframe['mass'].min()
@@ -313,7 +316,7 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
 
     # Set y-axis limits based on plot_intensity_range or calculated values
     if plot_intensity_range[0] == 0.0 and plot_intensity_range[1] == 1.0:
-        plt.ylim(0, max_intensity * 1.1)
+        plt.ylim(0, max_intensity * 1.3)
     else:
         plt.ylim(plot_intensity_range)
 
@@ -326,19 +329,21 @@ def plot_results(plot_dataframe, output_file, plot_mass_range, plot_intensity_ra
                 f'{row["mass"]:.4f}\nz = {row["charge_state"]}',  # Text label (mass value)
                 ha='center',  # Center the text horizontally
                 va='bottom',  # Position text below the y-coordinate
-                fontsize=10  # Font size
+                fontsize=18,  # Adjusted font size
+                color=plot_color  # Ensure visibility on the bars
             )
 
     # Customizing ticks
     plt.gca().xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+    plt.tick_params(axis='x', which='major', labelsize=18)  # Set font size for x-axis labels
+    plt.tick_params(axis='y', which='major', labelsize=18)  # Set font size for y-axis labels
     plt.gca().yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
-    plt.gca().yaxis.get_offset_text().set_fontsize(10)
-    plt.gca().yaxis.set_minor_formatter(ticker.ScalarFormatter(useMathText=True))
+    plt.gca().yaxis.get_offset_text().set_fontsize(18)  # Set font size for scientific notation text
     plt.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
 
     # Save plot
     plot_file_path = append_suffix_to_file(output_file, overwrite)
-    plt.savefig(f"{plot_file_path}_mass_spectrum.svg")
+    plt.savefig(f"{plot_file_path}_mass_spectrum.svg", bbox_inches='tight')  # Ensure labels are not cut off
     plt.close()
 
 

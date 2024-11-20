@@ -548,8 +548,7 @@ def plot_scatter(ax_scatter, plot_list, time_range, mass_range,
 
 
 def plot_XIC(ax_XIC, plot_list, time_range, full_range,
-                 sorted_unique_identifiers, colors, min_intensity, ax_legend):
-
+             sorted_unique_identifiers, colors, min_intensity, ax_legend):
     max_values = plot_list.groupby('formula')['intensity'].max()  # Get the maximum intensity for each identifier
     max_values_sorted = max_values.sort_values(ascending=False)
     max_intensity_overall = 0
@@ -577,19 +576,22 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
             else:
                 time_intensity_map[identifier][time_point] = intensity
 
-        # from the dictionary, create lists of times and intensities & add the start and end points
-        # added timepoints are necessary to create a continuous line plot
-        # 2nd & 3rd insertion to ensure that the line plot has a peak when having low intensity samples
-        times = list(time_intensity_map[identifier].keys())
-        intensities = list(time_intensity_map[identifier].values())
-        times.insert(0, time_range[0])
-        times.insert(1, (times[1]-0.01))
-        times.append(times[-1] + 0.01)
-        times.append(time_range[1])
-        intensities.insert(0, min_intensity)
-        intensities.insert(1, min_intensity)
-        intensities.append(min_intensity)
-        intensities.append(min_intensity)
+        # Ensure all 0.01 time steps within the range are represented
+        all_time_steps = np.arange(time_range[0], time_range[1] + 0.01, 0.01)
+        for time_step in all_time_steps:
+            # Check for neighbors in the original data points
+            has_neighbors = any(
+                abs(existing_time - time_step) <= 0.01
+                for existing_time in time_intensity_map[identifier].keys()
+            )
+
+            # Add `min_intensity` only if no neighbors exist
+            if not has_neighbors:
+                time_intensity_map[identifier][time_step] = min_intensity
+
+        # From the dictionary, create lists of times and intensities & add the start and end points
+        times = sorted(time_intensity_map[identifier].keys())
+        intensities = [time_intensity_map[identifier][t] for t in times]
 
         max_intensity_identifier = max(intensities)
         if max_intensity_identifier > max_intensity_overall:
@@ -609,14 +611,14 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
                         fontsize=14,
                         color=color)
 
-    # label specifications
+    # Label specifications
     ax_XIC.set_xlabel('Time (min)', fontsize=18)
     ax_XIC.set_ylabel('Intensity', fontsize=18)
     ax_XIC.tick_params(axis='both', which='major', labelsize=18)
 
     ax_XIC.set_ylim(0, max_intensity_overall * 1.1)
 
-    # check if full_range is true, otherwise adapt time range
+    # Check if full_range is true, otherwise adapt time range
     if full_range:
         ax_XIC.set_xlim((min(time_range), max(time_range)))
     else:

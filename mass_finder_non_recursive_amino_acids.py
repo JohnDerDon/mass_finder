@@ -473,8 +473,6 @@ def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors,
     total_abundance = sum(abundances.values())
     percentage_abundances = {identifier: (value / total_abundance) * 100 for identifier, value in abundances.items()}
 
-    print(percentage_abundances)
-
     # Reverse the order of identifiers and colors
     reversed_identifiers = sorted_unique_identifiers[::-1]
     reversed_colors = colors[::-1]
@@ -489,7 +487,7 @@ def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors,
         bar = ax_abundance.bar(0, percentage, bottom=bottom, align='center', color=reversed_colors[i])
         bars.append(bar)
         bottom += percentage  # Update the bottom for the next segment
-        print(percentage, percentage_abundances[identifier], identifier)
+
 
     # Add percentage text inside each bar segment (centered)
     cumulative_percentage = 0  # Reset cumulative percentage for text placement
@@ -499,9 +497,7 @@ def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors,
 
         # Calculate the center of the segment
         text_position = cumulative_percentage + (percentage / 2)
-        print(percentage, percentage_abundances[identifier], identifier)
         cumulative_percentage += percentage  # Update cumulative percentage
-
         # Only add text if the segment is large enough (>= 2%)
         if percentage >= 2:
             ax_abundance.text(0, text_position, f'{rounded_percentage}%', ha='center', va='center', color='white', fontsize=14)

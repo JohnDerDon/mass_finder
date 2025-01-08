@@ -495,10 +495,11 @@ def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors,
 
         # Update the cumulative percentage
         cumulative_percentage += percentage
-
-        # Position the text at the middle of each segment based on cumulative height
-        ax_abundance.text(0, cumulative_percentage - (percentage / 2),
-                          f'{rounded_percentage}%', ha='center', va='center', color='white', fontsize=14)
+        # Only add text if the segment is large enough (>= 2%)
+        if percentage >= 2:
+            # Position the text at the middle of each segment based on cumulative height
+            ax_abundance.text(0, cumulative_percentage - (percentage / 2),
+                            f'{rounded_percentage}%', ha='center', va='center', color='white', fontsize=14)
 
     ax_abundance.set_xticks([])  # Hide x-axis ticks
     ax_abundance.tick_params(axis='y', which='major', labelsize=18)

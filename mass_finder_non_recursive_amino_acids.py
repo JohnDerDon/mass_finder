@@ -473,34 +473,40 @@ def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors,
     total_abundance = sum(abundances.values())
     percentage_abundances = {identifier: (value / total_abundance) * 100 for identifier, value in abundances.items()}
 
-    # Combine all intensities into a single array for stacking
-    stacked_intensities = [percentage_abundances[sorted_unique_identifiers[0]]]
-    for i in range(len(sorted_unique_identifiers) - 1):
-        formula2 = sorted_unique_identifiers[i + 1]
-        stacked_intensity = stacked_intensities[i] + percentage_abundances[formula2]
-        stacked_intensities.append(stacked_intensity)
+    print(percentage_abundances)
 
-    # Reverse the order of the intensities & the colors for the stacked bar plot
-    stacked_intensities = stacked_intensities[::-1]
-    colors = colors[::-1]
+    # Reverse the order of identifiers and colors
     reversed_identifiers = sorted_unique_identifiers[::-1]
+    reversed_colors = colors[::-1]
 
-    # Plot a stacked bar in reverse order
-    bars = ax_abundance.bar(0, stacked_intensities, align='center', color=colors)
+    # Start with bottom=0 for the first bar segment
+    bottom = 0  # Initial position for the bottom of the first segment
+    bars = []
 
-    # Add percentage text inside each bar
-    cumulative_percentage = 0
-    for percentage, bar, identifier in zip(percentage_abundances.values(), bars, reversed_identifiers):
+    # Plot the stacked bars in inverted order
+    for i, identifier in enumerate(reversed_identifiers):
+        percentage = percentage_abundances[identifier]
+        bar = ax_abundance.bar(0, percentage, bottom=bottom, align='center', color=reversed_colors[i])
+        bars.append(bar)
+        bottom += percentage  # Update the bottom for the next segment
+        print(percentage, percentage_abundances[identifier], identifier)
+
+    # Add percentage text inside each bar segment (centered)
+    cumulative_percentage = 0  # Reset cumulative percentage for text placement
+    for identifier in reversed_identifiers:
+        percentage = percentage_abundances[identifier]
         rounded_percentage = round(percentage)  # Round to the nearest whole number
 
-        # Update the cumulative percentage
-        cumulative_percentage += percentage
+        # Calculate the center of the segment
+        text_position = cumulative_percentage + (percentage / 2)
+        print(percentage, percentage_abundances[identifier], identifier)
+        cumulative_percentage += percentage  # Update cumulative percentage
+
         # Only add text if the segment is large enough (>= 2%)
         if percentage >= 2:
-            # Position the text at the middle of each segment based on cumulative height
-            ax_abundance.text(0, cumulative_percentage - (percentage / 2),
-                            f'{rounded_percentage}%', ha='center', va='center', color='white', fontsize=14)
+            ax_abundance.text(0, text_position, f'{rounded_percentage}%', ha='center', va='center', color='white', fontsize=14)
 
+    # Aesthetic settings
     ax_abundance.set_xticks([])  # Hide x-axis ticks
     ax_abundance.tick_params(axis='y', which='major', labelsize=18)
     ax_abundance.set_ylabel('Relative Abundance (%)', fontsize=18)

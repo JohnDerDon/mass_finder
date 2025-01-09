@@ -371,7 +371,7 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     color_df = pd.DataFrame(color_data)
 
     # Assign a color to each unique identifier
-    colors = []
+    colors = {}
 
     # Initialize indices to track which colors to use
     gray_index = 6  # Start at Gray1 (index 6 in the list)
@@ -416,7 +416,7 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
             blue_index = (blue_index + 1) % 6  # Loop through Blue1 to Blue6
 
         # Append the selected color
-        colors.append(color)
+        colors[identifier] = color
 
     #
     suffix = 0
@@ -475,7 +475,6 @@ def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors,
 
     # Reverse the order of identifiers and colors
     reversed_identifiers = sorted_unique_identifiers[::-1]
-    reversed_colors = colors[::-1]
 
     # Start with bottom=0 for the first bar segment
     bottom = 0  # Initial position for the bottom of the first segment
@@ -484,7 +483,7 @@ def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors,
     # Plot the stacked bars in inverted order
     for i, identifier in enumerate(reversed_identifiers):
         percentage = percentage_abundances[identifier]
-        bar = ax_abundance.bar(0, percentage, bottom=bottom, align='center', color=reversed_colors[i])
+        bar = ax_abundance.bar(0, percentage, bottom=bottom, align='center', color=colors[identifier])
         bars.append(bar)
         bottom += percentage  # Update the bottom for the next segment
 
@@ -515,12 +514,11 @@ def plot_scatter(ax_scatter, plot_list, time_range, mass_range,
     # plot the scatter plot on the main axes
     for i, identifier in enumerate(sorted_unique_identifiers):
         indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
-        color = colors[i]
         for j in indices:
             alpha = ((plot_list.at[j, 'intensity_log10'] - log_min_intensity) /
                      (plot_list['intensity_log10'].max() - log_min_intensity))  # Normalize z value for shading
             ax_scatter.scatter(plot_list.at[j, 'time'], plot_list.at[j, 'experimental_mass'],
-                            marker='.', edgecolors='none', color=color, alpha=alpha, label=f'{identifier}')
+                            marker='.', edgecolors='none', color=colors[identifier], alpha=alpha, label=f'{identifier}')
 
     # label specifications
     ax_scatter.set_xlabel('Time (min)', fontsize=18)
@@ -566,7 +564,6 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
     # Iterate through each identifier
     for i, identifier in enumerate(sorted_unique_identifiers):
         indices = plot_list.index[plot_list['formula'] == identifier].tolist()  # Get indices where identifier matches
-        color = colors[i]
 
         # Iterate through each index corresponding to the current identifier
         for j in indices:
@@ -600,7 +597,7 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
         if max_intensity_identifier > max_intensity_overall:
             max_intensity_overall = max_intensity_identifier
 
-        ax_XIC.plot(times, intensities, color=color, linewidth=1.5, label=f'{identifier}', zorder=identifier_zorder[identifier])
+        ax_XIC.plot(times, intensities, color=colors[identifier], linewidth=1.5, label=f'{identifier}', zorder=identifier_zorder[identifier])
 
         # Find the index of the maximum intensity for the current identifier
         max_idx = plot_list.loc[plot_list['formula'] == identifier, 'intensity'].idxmax()
@@ -612,7 +609,7 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
                         ha='center',
                         va='bottom',
                         fontsize=14,
-                        color=color)
+                        color=colors[identifier])
 
     # Label specifications
     ax_XIC.set_xlabel('Time (min)', fontsize=18)
@@ -630,7 +627,7 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
     # Create legend with custom font color
     patches = []
     for i, identifier in enumerate(sorted_unique_identifiers):
-        patches.append(mpatches.Patch(color=colors[i], label='\n'.join(wrap(identifier, 25))))
+        patches.append(mpatches.Patch(color=colors[identifier], label='\n'.join(wrap(identifier, 25))))
     ax_legend.legend(handles=patches, fontsize='large', loc='upper left')
 
 

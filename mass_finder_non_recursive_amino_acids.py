@@ -552,10 +552,13 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
              sorted_unique_identifiers, colors, min_intensity, ax_legend):
     max_values = plot_list.groupby('formula')['intensity'].max()  # Get the maximum intensity for each identifier
     max_values_sorted = max_values.sort_values(ascending=False)
-    max_intensity_overall = 0
 
     # Create a zorder for the identifiers based on their maximum intensity
     identifier_zorder = {identifier: i for i, identifier in enumerate(max_values_sorted.index)}
+
+    # Dictionary to store max_intensity, index, and retention time for each identifier
+    identifier_max_info = {}
+    max_intensity_overall = 0
 
     # Define the XIC main plot
     # Create a dictionary to store intensity values for each time point and identifier
@@ -593,23 +596,52 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
         times = sorted(time_intensity_map[identifier].keys())
         intensities = [time_intensity_map[identifier][t] for t in times]
 
-        max_intensity_identifier = max(intensities)
-        if max_intensity_identifier > max_intensity_overall:
-            max_intensity_overall = max_intensity_identifier
-
         ax_XIC.plot(times, intensities, color=colors[identifier], linewidth=1.5, label=f'{identifier}', zorder=identifier_zorder[identifier])
 
         # Find the index of the maximum intensity for the current identifier
         max_idx = plot_list.loc[plot_list['formula'] == identifier, 'intensity'].idxmax()
         max_retention_time = plot_list.at[max_idx, 'time']
+        max_intensity_identifier = max(intensities)
 
-        # Annotate the maximum intensity point
-        ax_XIC.annotate(f'{max_retention_time:.2f}',
-                        xy=(max_retention_time, max_intensity_identifier),
-                        ha='center',
-                        va='bottom',
-                        fontsize=14,
-                        color=colors[identifier])
+        # Identify the overall maximum intensity
+        max_intensity_overall = max(max_intensity_identifier, max_intensity_overall)
+
+        # Store max intensity, its index, and retention time in the dictionary
+        identifier_max_info[identifier] = {
+            'max_intensity': max_intensity_identifier,
+            'max_index': max_idx,
+            'max_retention_time': max_retention_time
+        }
+
+    # sort the identifier_max_info by the maximum intensity
+    identifier_max_info = {k: v for k, v in sorted(identifier_max_info.items(), key=lambda item: item[1]['max_intensity'], reverse=True)}
+
+    # Prevent annotation overlap
+    annotated_points = []  # Store annotated x-axis positions
+
+    for identifier, info in identifier_max_info.items():
+        max_retention_time = identifier_max_info[identifier]['max_retention_time']
+        max_intensity_identifier = identifier_max_info[identifier]['max_intensity']
+
+        if max_intensity_identifier > max_intensity_overall * 0.05:
+            # Check if any annotations are too close
+            close_annotations = [
+                abs(max_retention_time - annotated_time) < 0.025 * (time_range[1] - time_range[0])
+                for annotated_time, annotated_intensity in annotated_points
+                if annotated_intensity > max_intensity_identifier
+            ]
+
+            if not any(close_annotations):
+                # Annotate the maximum intensity point
+                ax_XIC.annotate(f'{max_retention_time:.2f}',
+                                xy=(max_retention_time, max_intensity_identifier),
+                                ha='center',
+                                va='bottom',
+                                fontsize=14,
+                                color=colors[identifier])
+
+                # Add this point to the list of annotated points
+                annotated_points.append((max_retention_time, max_intensity_identifier))
 
     # Label specifications
     ax_XIC.set_xlabel('Time (min)', fontsize=18)

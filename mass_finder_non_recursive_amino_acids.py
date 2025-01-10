@@ -363,7 +363,7 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
             "#FFC700", "#FF9900", "#CC9900", "#FFCC66", "#FFEC00", "#FFFF66",  # Yellow shades
             "#009900", "#005500", "#2ECC40", "#669900", "#339966", "#8ED973",  # Adjusted Green shades
             "#1C0ED8", "#1877CE", "#000099", "#00FFFF", "#89C1FF", "#5807F9",  # Adjusted Blue shades
-            "#C00000", "#FF2D2D", "#D86E6E", "#820000", "#F9B08F", "#EE4F08"  # Red shades
+            "#C00000", "#D86E6E", "#F9B08F", "#EE4F08", "#6D5B5B", "#4B4B65"  # Red shades
         ]
     }
 
@@ -608,6 +608,19 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
     # sort the identifier_max_info by the maximum intensity
     identifier_max_info = {k: v for k, v in sorted(identifier_max_info.items(), key=lambda item: item[1]['max_intensity'], reverse=True)}
 
+    # Label specifications
+    ax_XIC.set_xlabel('Time (min)', fontsize=18)
+    ax_XIC.set_ylabel('Intensity', fontsize=18)
+    ax_XIC.tick_params(axis='both', which='major', labelsize=18)
+
+    ax_XIC.set_ylim(0, max_intensity_overall * 1.1)
+
+    # Check if full_range is true, otherwise adapt time range
+    if full_range:
+        ax_XIC.set_xlim((min(time_range), max(time_range)))
+    else:
+        ax_XIC.set_xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
+
     # Prevent annotation overlap
     annotated_points = []  # Store annotated x-axis positions
 
@@ -618,7 +631,7 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
         if max_intensity_identifier > max_intensity_overall * 0.05:
             # Check if any annotations are too close
             close_annotations = [
-                abs(max_retention_time - annotated_time) < 0.025 * (time_range[1] - time_range[0])
+                abs(max_retention_time - annotated_time) < 0.025 * (ax_XIC.get_xlim()[1] - ax_XIC.get_xlim()[0])
                 for annotated_time, annotated_intensity in annotated_points
                 if annotated_intensity > max_intensity_identifier
             ]
@@ -634,19 +647,6 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
 
                 # Add this point to the list of annotated points
                 annotated_points.append((max_retention_time, max_intensity_identifier))
-
-    # Label specifications
-    ax_XIC.set_xlabel('Time (min)', fontsize=18)
-    ax_XIC.set_ylabel('Intensity', fontsize=18)
-    ax_XIC.tick_params(axis='both', which='major', labelsize=18)
-
-    ax_XIC.set_ylim(0, max_intensity_overall * 1.1)
-
-    # Check if full_range is true, otherwise adapt time range
-    if full_range:
-        ax_XIC.set_xlim((min(time_range), max(time_range)))
-    else:
-        ax_XIC.set_xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
 
     # Create legend with custom font color
     patches = []

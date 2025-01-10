@@ -590,10 +590,10 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
 
         ax_XIC.plot(times, intensities, color=colors[identifier], linewidth=1.5, label=f'{identifier}', zorder=identifier_zorder[identifier])
 
-        # Find the index of the maximum intensity for the current identifier
-        max_idx = plot_list.loc[plot_list['formula'] == identifier, 'intensity'].idxmax()
-        max_retention_time = plot_list.at[max_idx, 'time']
+        # Find the maximum intensity and corresponding time in time_intensity_map
         max_intensity_identifier = max(intensities)
+        max_idx = intensities.index(max_intensity_identifier)  # Index of the maximum intensity
+        max_retention_time = times[max_idx]  # Corresponding retention time
 
         # Identify the overall maximum intensity
         max_intensity_overall = max(max_intensity_identifier, max_intensity_overall)

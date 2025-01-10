@@ -573,12 +573,12 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
 
         # Ensure all 0.01 time steps within the range are represented
         all_time_steps = np.arange(time_range[0], time_range[1] + 0.01, 0.01)
+        # Convert existing times to a numpy array for vectorized operations
+        existing_times = np.array(list(time_intensity_map[identifier].keys()))
+
         for time_step in all_time_steps:
-            # Check for neighbors in the original data points
-            has_neighbors = any(
-                abs(existing_time - time_step) <= 0.01
-                for existing_time in time_intensity_map[identifier].keys()
-            )
+            # Check for neighbors using numpy vectorized operations
+            has_neighbors = np.any(np.abs(existing_times - time_step) <= 0.01)
 
             # Add `min_intensity` only if no neighbors exist
             if not has_neighbors:

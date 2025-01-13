@@ -86,12 +86,45 @@ def process_folder(input_folder, output_file=None):
         # Create dataframe
         df = pd.DataFrame(data, columns=column_names)
 
+        # Add a new column 'conversion_rate' initialized to 0
+        df['conversion_rate'] = None
+
+        # Loop through the dataframe rows
+        for index, row in df.iterrows():
+            total_conversion = 0.0
+
+            # Get the identifiers (skip the first two columns: date_name and replicate)
+            # skip the last column (conversion_rate)
+            identifiers = row[2:-1:2].tolist()
+            abundances = row[3::2].tolist()
+
+            # delete all identifiers that are None and all abundances that are nan
+            identifiers = [identifier for identifier in identifiers if identifier is not None]
+            abundances = [abundance for abundance in abundances if not pd.isna(abundance)]
+
+            # if identifiers and abundances are empty, break the loop
+            if len(identifiers) == 0 or len(abundances) == 0:
+               continue
+
+            # Identify the shortest identifier in this row
+            shortest_identifier = min(identifiers, key=len)
+
+            # Sum the abundances of identifiers that contain the shortest identifier plus another string
+            for i, identifier in enumerate(identifiers):
+                # Check if the identifier contains the shortest identifier along with some other string
+                if shortest_identifier != identifier and shortest_identifier in identifier:
+                    total_conversion += abundances[i]
+
+            # Store the summed relative abundance in the 'conversion_rate' column
+            df.at[index, 'conversion_rate'] = total_conversion
+
         # Determine the output file name
         if not output_file:
             output_file = os.path.join(input_folder, "output_table.csv")
         elif not output_file.endswith(".csv"):
             output_file += ".csv"
 
+        # Save the dataframe to the output CSV file
         df.to_csv(output_file, index=False)
         print(f"Data successfully saved to {output_file}")
     else:

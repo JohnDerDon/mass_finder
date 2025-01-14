@@ -2,6 +2,7 @@ import os
 import sys
 import pandas as pd
 import re
+import numpy as np  # For handling NaN values and calculations
 
 def process_folder(input_folder, output_file=None):
     data = []
@@ -117,6 +118,49 @@ def process_folder(input_folder, output_file=None):
 
             # Store the summed relative abundance in the 'conversion_rate' column
             df.at[index, 'conversion_rate'] = total_conversion
+
+        # Check replicates and calculate mean/std
+        df['mean_conversion_rate'] = None
+        df['mean_std_dev'] = None
+        n_rows = len(df)
+        i = 0
+
+        while i < n_rows:
+            row = df.iloc[i]
+            if row['replicate'] == '':
+                i += 1
+                continue
+
+            # Check for consecutive replicates
+            replicate_group = []
+            current_replicate = int(row['replicate'])
+            while i < n_rows:
+                row = df.iloc[i]
+                if int(row['replicate']) < current_replicate:
+                    break
+
+                if int(row['replicate']) == current_replicate:
+                    replicate_group.append(i)
+                    current_replicate += 1
+                else:
+                    break
+                i += 1
+
+            # Calculate mean and std for the replicate group
+            if replicate_group:
+                conversion_rates = df.loc[replicate_group, 'conversion_rate'].dropna()
+
+                if not conversion_rates.empty:
+                    mean_conversion = conversion_rates.mean()
+
+                    # Calculate std dev, if only one value, set std_dev to 0.0
+                    if len(conversion_rates) > 1:
+                        std_dev = conversion_rates.std()
+                    else:
+                        std_dev = 0.0
+
+                    df.loc[replicate_group, 'mean_conversion_rate'] = mean_conversion
+                    df.loc[replicate_group, 'mean_std_dev'] = std_dev
 
         # Determine the output file name
         if not output_file:

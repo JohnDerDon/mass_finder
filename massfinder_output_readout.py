@@ -119,9 +119,10 @@ def process_folder(input_folder, output_file=None):
             # Store the summed relative abundance in the 'conversion_rate' column
             df.at[index, 'conversion_rate'] = total_conversion
 
-        # Check replicates and calculate mean/std
+        # Check replicates, calculate mean/std and store number of replicates used for the mean
         df['mean_conversion_rate'] = None
         df['mean_std_dev'] = None
+        df['replicates_used'] = None
         n_rows = len(df)
         i = 0
 
@@ -152,6 +153,7 @@ def process_folder(input_folder, output_file=None):
 
                 if not conversion_rates.empty:
                     mean_conversion = conversion_rates.mean()
+                    replicates_used = len(conversion_rates)
 
                     # Calculate std dev, if only one value, set std_dev to 0.0
                     if len(conversion_rates) > 1:
@@ -161,6 +163,7 @@ def process_folder(input_folder, output_file=None):
 
                     df.loc[replicate_group, 'mean_conversion_rate'] = mean_conversion
                     df.loc[replicate_group, 'mean_std_dev'] = std_dev
+                    df.loc[replicate_group, 'replicates_used'] = replicates_used
 
         # Determine the output file name
         if not output_file:

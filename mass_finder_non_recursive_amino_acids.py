@@ -440,6 +440,14 @@ def plot_results_subplots(plot_list, output_file, time_range, mass_range,
     ax_legend = fig.add_subplot(gs[0, 3:])
     ax_legend.axis('off')
 
+    # Add letters to the subplots
+    ax_abundance.text(-1.2, 1.04, 'A', transform=ax_abundance.transAxes,
+                      fontsize=20, fontweight='bold', va='top', ha='right')
+    ax_XIC.text(-0.1, 1.10, 'B', transform=ax_XIC.transAxes,
+                fontsize=20, fontweight='bold', va='top', ha='right')
+    ax_scatter.text(-0.1, 1.10, 'C', transform=ax_scatter.transAxes,
+                    fontsize=20, fontweight='bold', va='top', ha='right')
+
     # Plot the stacked bar
     plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors, relative_abundances)
 

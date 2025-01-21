@@ -121,6 +121,7 @@ def construct_element_dictionary(element_string):
             min_count = False
         max_count = int(parts[2])
         identifier = parts[1]
+        peptide = False
 
         # check if there is a name tag
         if ':' in identifier:
@@ -142,6 +143,7 @@ def construct_element_dictionary(element_string):
             # get the 13C isotope count of the peptide
             num_carbon_atoms = pymass.Composition(identifier_formula).get('C', 0)
             isotope_count = relative_abundance_13C * num_carbon_atoms
+            peptide = True
         # get all atomic masses
         else:
             # get the mass of the chemical formula
@@ -149,7 +151,7 @@ def construct_element_dictionary(element_string):
             # get the 13C isotope count of the chemical formula
             num_carbon_atoms = pymass.Composition(identifier_formula).get('C', 0)
             isotope_count = relative_abundance_13C * num_carbon_atoms
-        element_dictionary[identifier_name] = [identifier_formula, min_count, max_count, round(mass, 4), round(isotope_count, 4)]
+        element_dictionary[identifier_name] = [identifier_formula, min_count, max_count, round(mass, 4), round(isotope_count, 4), peptide]
     return element_dictionary
 
 
@@ -167,21 +169,25 @@ def generate_formulas(element_string):
     formulas = {}
     element_dict = construct_element_dictionary(element_string)
     element_names = list(element_dict.keys())
+    h2o_mass = pymass.calculate_mass(formula="H2O")  # Mass of one H2O molecule
 
     # Check for single-use elements in the element dictionary
     single_use_elements = {
-        element for element, (_, min_count, max_count, _, _) in element_dict.items() if min_count is False
+        element for element, (_, min_count, max_count, _, _, _) in element_dict.items() if min_count is False
     }
 
     # Recursively generate all possible formulas
-    def backtrack(formula, current_element, mass, isotope_count, used_single_use_element):
+    def backtrack(formula, current_element, mass, isotope_count, used_single_use_element, contains_peptide):
         """Recursively generate all possible formulas."""
         if current_element == len(element_names):
+            # If any peptide is present, adjust mass by adding H2O mass
+            if contains_peptide:
+                mass += h2o_mass
             formulas[formula] = (mass, isotope_count)
             return
 
         element_name = element_names[current_element]
-        identifier_formula, min_count, max_count, element_mass, element_isotope_count = element_dict[element_name]
+        identifier_formula, min_count, max_count, element_mass, element_isotope_count, peptide = element_dict[element_name]
 
         # Check if the element is a single-use element
         if element_name in single_use_elements:
@@ -190,9 +196,9 @@ def generate_formulas(element_string):
                     updated_formula = f"{formula}{element_name}({max_count})"
                     updated_mass = mass + (element_mass * max_count)
                     updated_isotope_count = isotope_count + (element_isotope_count * max_count)
-                    backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count, element_name)
+                    backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count, element_name, contains_peptide or peptide)
             # Skip adding this single-use element and move to the next
-            backtrack(formula, current_element + 1, mass, isotope_count, used_single_use_element)
+            backtrack(formula, current_element + 1, mass, isotope_count, used_single_use_element, contains_peptide)
         else:
             for count in range(min_count, max_count + 1):
                 updated_formula = f"{formula}{element_name}({count})"
@@ -201,13 +207,13 @@ def generate_formulas(element_string):
                 # If the count is non-zero, proceed recursively
                 if count != 0:
                     backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count,
-                              used_single_use_element)
+                              used_single_use_element, contains_peptide or peptide)
                 else:
                     # If the count is zero, proceed without adding the element
-                    backtrack(formula, current_element + 1, mass, isotope_count, used_single_use_element)
+                    backtrack(formula, current_element + 1, mass, isotope_count, used_single_use_element, contains_peptide)
 
     # Start backtracking with an empty formula and initial conditions
-    backtrack("", 0, 0.0, 0.0, None)
+    backtrack("", 0, 0.0, 0.0, None, False)
 
     # Sort formulas by mass and return the result
     formulas = {formula: (mass, isotope_count) for formula, (mass, isotope_count) in

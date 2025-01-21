@@ -177,13 +177,13 @@ def generate_formulas(element_string):
     }
 
     # Recursively generate all possible formulas
-    def backtrack(formula, current_element, mass, isotope_count, used_single_use_element, contains_peptide):
+    def backtrack(formula_name, current_element, mass, isotope_count, used_single_use_element, contains_peptide):
         """Recursively generate all possible formulas."""
         if current_element == len(element_names):
             # If any peptide is present, adjust mass by adding H2O mass
             if contains_peptide:
                 mass += h2o_mass
-            formulas[formula] = (mass, isotope_count)
+            formulas[formula_name] = (mass, isotope_count)
             return
 
         element_name = element_names[current_element]
@@ -193,30 +193,30 @@ def generate_formulas(element_string):
         if element_name in single_use_elements:
             if not used_single_use_element:
                 if max_count != 0:
-                    updated_formula = f"{formula}{element_name}({max_count})"
+                    updated_formula_name = f"{formula_name}{element_name}({max_count})"
                     updated_mass = mass + (element_mass * max_count)
                     updated_isotope_count = isotope_count + (element_isotope_count * max_count)
-                    backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count, element_name, contains_peptide or peptide)
+                    backtrack(updated_formula_name, current_element + 1, updated_mass, updated_isotope_count, element_name, contains_peptide or peptide)
             # Skip adding this single-use element and move to the next
-            backtrack(formula, current_element + 1, mass, isotope_count, used_single_use_element, contains_peptide)
+            backtrack(formula_name, current_element + 1, mass, isotope_count, used_single_use_element, contains_peptide)
         else:
             for count in range(min_count, max_count + 1):
-                updated_formula = f"{formula}{element_name}({count})"
+                updated_formula_name = f"{formula_name}{element_name}({count})"
                 updated_mass = mass + (element_mass * count)
                 updated_isotope_count = isotope_count + (element_isotope_count * count)
                 # If the count is non-zero, proceed recursively
                 if count != 0:
-                    backtrack(updated_formula, current_element + 1, updated_mass, updated_isotope_count,
+                    backtrack(updated_formula_name, current_element + 1, updated_mass, updated_isotope_count,
                               used_single_use_element, contains_peptide or peptide)
                 else:
                     # If the count is zero, proceed without adding the element
-                    backtrack(formula, current_element + 1, mass, isotope_count, used_single_use_element, contains_peptide)
+                    backtrack(formula_name, current_element + 1, mass, isotope_count, used_single_use_element, contains_peptide)
 
     # Start backtracking with an empty formula and initial conditions
     backtrack("", 0, 0.0, 0.0, None, False)
 
     # Sort formulas by mass and return the result
-    formulas = {formula: (mass, isotope_count) for formula, (mass, isotope_count) in
+    formulas = {formula_name: (mass, isotope_count) for formula_name, (mass, isotope_count) in
                 sorted(formulas.items(), key=lambda item: item[1][0])}
 
     return formulas
@@ -244,7 +244,7 @@ def generate_formula_with_charge(formulas, mass_range, monoisotopic):
     mass_neutron = pymass.nist_mass['C'][13][0] - pymass.nist_mass['C'][12][0]
 
     # find maximum and minimum charge states for each formula
-    for formula, (mass, isotope_count) in formulas.items():
+    for formula_name, (mass, isotope_count) in formulas.items():
         min_charge, max_charge = calculate_charge_range(mass, mass_range)
         # calculate the number of the most abundant 13C isotope peak with the values of the isotope count
         isotope_peak_number = round(isotope_count)
@@ -256,10 +256,10 @@ def generate_formula_with_charge(formulas, mass_range, monoisotopic):
             else:
                 # calculate the mass of the most abundant 13C isotope peak, empirically determined to change at 1500 Da
                 charge_state_mass = round((mass + (charge * mass_proton) + (mass_neutron * isotope_peak_number)) / charge, 4)
-            if formula in formulas_with_charge:
-                formulas_with_charge[formula].append([charge, charge_state_mass, isotope_peak_number])
+            if formula_name in formulas_with_charge:
+                formulas_with_charge[formula_name].append([charge, charge_state_mass, isotope_peak_number])
             else:
-                formulas_with_charge[formula] = [[charge, charge_state_mass, isotope_peak_number]]
+                formulas_with_charge[formula_name] = [[charge, charge_state_mass, isotope_peak_number]]
 
     return formulas_with_charge
 
@@ -390,14 +390,10 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     # Assign a color to each unique identifier
     colors = {}
 
-    # Helper function to determine if part is an amino acid sequence
-    def is_amino_acid_sequence(part):
-        return all(char in "ACDEFGHIKLMNPQRSTVWY" for char in part) and len(part) > 1
-
     # Helper function to check for fatty acid pattern
     def is_fatty_acid_pattern(part):
         # Check if there is a match for the fatty acid moiety pattern
-        return re.match(r"C\d+H\d+O\d+", part) is not None
+        return re.match(r"C\d+", part) is not None
 
     # Assign colors based on conditions
     pink_index = 0
@@ -414,15 +410,11 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
             color = color_df[color_df["Color Identifier"] == f"Pink{pink_index + 1}"]["Hex Code"].values[0]
             pink_index = (pink_index + 1) % 6  # Loop through Pink1 to Pink6
         # Check if any part matches the amino acid condition
-        elif any(is_amino_acid_sequence(part) for part in parts):
+        else:
             # Assign gray color
             color = color_df[color_df["Color Identifier"] == f"Gray{gray_index + 1}"]["Hex Code"].values[0]
             gray_index = (gray_index + 1) % 6  # Loop through Gray1 to Gray6
         # if none of the above conditions are met, assign blue colors based on the index
-        else:
-            # Assign blue color
-            color = color_df[color_df["Color Identifier"] == f"Blue{blue_index + 1}"]["Hex Code"].values[0]
-            blue_index = (blue_index + 1) % 6  # Loop through Blue1 to Blue6
 
         # Append the selected color
         colors[identifier] = color

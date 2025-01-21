@@ -781,7 +781,7 @@ def main():
             # Check if the relative abundances are not None
             if calculate_abundances(generate_plot_list(analyzed_spectra)) is not None:
                 for formula, abundance in calculate_abundances(generate_plot_list(analyzed_spectra)).items():
-                    output_file.write(f"Sum intensity: {abundance[0]}\tRelative abundance: {abundance[1]}\tIdentifier: {formula}:\n")
+                    output_file.write(f"Sum intensity: {abundance[0]}\tRelative abundance: {abundance[1]}\tIdentifier: {formula}\n")
             else:
                 output_file.write(f"No matching masses found in {output_file_path}\n")
                 continue

@@ -323,7 +323,7 @@ def generate_plot_list(analyzed_spectra):
     return plot_list
 
 
-def relative_abundances(plot_list):
+def calculate_abundances(plot_list):
     """
     Calculate the relative abundances of each formula based on the sum of intensities.
 
@@ -343,10 +343,13 @@ def relative_abundances(plot_list):
     # Calculate the total intensity
     total_intensity = sum_intensities.sum()
 
-    # Calculate the relative abundances for each formula
-    relative_abundances = {formula: intensity / total_intensity for formula, intensity in sum_intensities.items()}
+    # Calculate the relative abundances for each formula and store it along with the intensity
+    abundances = {
+        formula: (intensity, intensity / total_intensity)
+        for formula, intensity in sum_intensities.items()
+    }
 
-    return relative_abundances
+    return abundances
 
 
 
@@ -458,7 +461,7 @@ def plot_results_subplots(plot_list, output_file, time_range, mass_range,
                     fontsize=20, fontweight='bold', va='top', ha='right')
 
     # Plot the stacked bar
-    plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors, relative_abundances)
+    plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors)
 
     # Plot the XIC
     plot_XIC(ax_XIC, plot_list, time_range, full_range, sorted_unique_identifiers, colors, min_intensity, ax_legend)
@@ -474,13 +477,11 @@ def plot_results_subplots(plot_list, output_file, time_range, mass_range,
     plt.close()
 
 
-def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors, relative_abundances):
+def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors):
     # Define the abundance plot on the abundance axis
-    abundances = relative_abundances(plot_list)
+    abundances_local = calculate_abundances(plot_list)
 
-    # Convert abundances to percentages
-    total_abundance = sum(abundances.values())
-    percentage_abundances = {identifier: (value / total_abundance) * 100 for identifier, value in abundances.items()}
+    percentage_abundances = {identifier: value[1] * 100 for identifier, value in abundances_local.items()}
 
     # Reverse the order of identifiers and colors
     reversed_identifiers = sorted_unique_identifiers[::-1]
@@ -776,11 +777,11 @@ def main():
             output_file.write(
                 f"Mass range; {mass_range}\nTime range: {time_range}\n\n")
             output_file.write(
-                f"Relative abundances of the different formulas:\n")
+                f"Relative abundances and sum intensities of the different formulas:\n")
             # Check if the relative abundances are not None
-            if relative_abundances(generate_plot_list(analyzed_spectra)) is not None:
-                for formula, abundance in relative_abundances(generate_plot_list(analyzed_spectra)).items():
-                    output_file.write(f"\t{formula}:\t {abundance}\n")
+            if calculate_abundances(generate_plot_list(analyzed_spectra)) is not None:
+                for formula, abundance in calculate_abundances(generate_plot_list(analyzed_spectra)).items():
+                    output_file.write(f"Sum intensity: {abundance[0]}\tRelative abundance: {abundance[1]}\tIdentifier: {formula}:\n")
             else:
                 output_file.write(f"No matching masses found in {output_file_path}\n")
                 continue
@@ -794,7 +795,7 @@ def main():
                 output_file.write(f"Found matching mass at {retention_time} min:\n")
                 for peak in spectrum:
                     output_file.write(
-                        f"\tExperimental Mass: {peak['experimental_mass']}\tIntensity: {peak['intensity']}\tFormula: {peak['formula']}\tTheoretical mass: {peak['theoretical_mass']}\tParent mass: {peak['parent_mass']}\tCharge state: {peak['charge_state']}\tIsotope peak number: {peak['isotope_peak_number']}" + "\n")
+                        f"\tExperimental Mass: {peak['experimental_mass']}\tIntensity: {peak['intensity']}\tIdentifier: {peak['formula']}\tTheoretical mass: {peak['theoretical_mass']}\tParent mass: {peak['parent_mass']}\tCharge state: {peak['charge_state']}\tIsotope peak number: {peak['isotope_peak_number']}" + "\n")
 
         # Plot the results
         # Check if the full range is set to True

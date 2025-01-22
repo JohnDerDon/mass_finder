@@ -401,11 +401,10 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     # Assign colors based on conditions
     pink_index = 0
     gray_index = 0
-    blue_index = 0
 
     for identifier in sorted_unique_identifiers:
-        # Split the identifier by the pattern (X) where X is a digit, e.g., (1), (2), etc.
-        parts = re.split(r'\(\d+\)', identifier)
+        # Split the identifier by the pattern (X) where X is a positive or negative digit, e.g., (1), (2), etc.
+        parts = re.split(r'\(-?\d+\)', identifier)
 
         # Check if any part matches the fatty acid condition (priority)
         if any(is_fatty_acid_pattern(part) for part in parts):

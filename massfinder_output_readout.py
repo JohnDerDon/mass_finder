@@ -44,8 +44,8 @@ def process_folder(input_folder, output_file=None):
                     content = f.read()
 
                 # Look for the relevant section
-                if "Relative abundances of the different formulas:" in content:
-                    section_start = content.split("Relative abundances of the different formulas:", 1)[1].strip()
+                if "Relative abundances and sum intensities of the different formulas:" in content:
+                    section_start = content.split("Relative abundances and sum intensities of the different formulas:", 1)[1].strip()
 
                     # Check if "No matching masses found" is in the content
                     if "No matching masses found" in section_start:
@@ -61,27 +61,30 @@ def process_folder(input_folder, output_file=None):
                     else:
                         section = section_start
 
-                    # Extract formula and relative abundance pairs using a modified regular expression
-                    entries = re.findall(r"([^\s:]+(?:[^\n:]*))\s*:\s*(-?\d+\.\d+)", section)
-                    if not entries:
-                        continue
+                    # Extract identifiers, relative abundances, and sum intensities using regular expressions
+                    identifiers = re.findall(r"Identifier:\s*([^\n]+)", section)
+                    abundances = re.findall(r"Relative abundance:\s*(-?\d+\.\d+)", section)
+                    sum_intensities = re.findall(r"Sum intensity:\s*(-?\d+\.\d+)", section)
 
-                    # Prepare row data, starting with the base name and replicate
-                    row = [base_name, replicate]
-                    for identifier, abundance in entries:
-                        row.append(identifier)  # Add identifier to the row
-                        row.append(float(abundance))  # Add corresponding abundance to the row
+                    # Ensure all lists are of the same length
+                    if len(identifiers) == len(abundances) == len(sum_intensities):
+                        # Prepare row data, starting with the base name and replicate
+                        row = [base_name, replicate]
+                        for identifier, abundance, sum_intensity in zip(identifiers, abundances, sum_intensities):
+                            row.append(identifier)  # Add identifier to the row
+                            row.append(float(abundance))  # Add corresponding relative abundance to the row
+                            row.append(float(sum_intensity))  # Add corresponding sum intensity to the row
 
-                    data.append(row)
+                        data.append(row)
 
     if data:
-        # Calculate the maximum number of identifier/relative_abundance pairs in any row
-        max_pairs = max((len(row) - 2) // 2 for row in data)  # Exclude "date_name" and "replicate"
+        # Calculate the maximum number of identifier/relative_abundance/sum_intensity triplets in any row
+        max_triplets = max((len(row) - 2) // 3 for row in data)  # Exclude "date_name" and "replicate"
 
-        # Create column names: first "date_name", then "replicate", followed by alternating "identifier" and "relative_abundance"
+        # Create column names: first "date_name", then "replicate", followed by alternating "identifier", "relative_abundance", and "sum_intensity"
         column_names = ["date_name", "replicate"] + [
-            f"identifier{i // 2 + 1}" if i % 2 == 0 else f"relative_abundance{i // 2 + 1}"
-            for i in range(max_pairs * 2)
+            f"identifier{i // 3 + 1}" if i % 3 == 0 else f"relative_abundance{i // 3 + 1}" if i % 3 == 1 else f"intensity{i // 3 + 1}"
+            for i in range(max_triplets * 3)
         ]
 
         # Create dataframe
@@ -92,19 +95,22 @@ def process_folder(input_folder, output_file=None):
 
         # Loop through the dataframe rows
         for index, row in df.iterrows():
+            total_intensity = 0.0
             total_conversion = 0.0
 
             # Get the identifiers (skip the first two columns: date_name and replicate)
             # skip the last column (conversion_rate)
-            identifiers = row[2:-1:2].tolist()
-            abundances = row[3::2].tolist()
+            identifiers = row[2:-1:3].tolist()
+            abundances = row[3::3].tolist()
+            intensities = row[4::3].tolist()
 
             # delete all identifiers that are None and all abundances that are nan
             identifiers = [identifier for identifier in identifiers if identifier is not None]
             abundances = [abundance for abundance in abundances if not pd.isna(abundance)]
+            intensities = [intensity for intensity in intensities if not pd.isna(intensity)]
 
             # if identifiers and abundances are empty, break the loop
-            if len(identifiers) == 0 or len(abundances) == 0:
+            if len(identifiers) == 0 or len(abundances) == 0 or len(intensities) == 0:
                continue
 
             # Identify the shortest identifier in this row
@@ -112,12 +118,14 @@ def process_folder(input_folder, output_file=None):
 
             # Sum the abundances of identifiers that contain the shortest identifier plus another string
             for i, identifier in enumerate(identifiers):
+                total_intensity += intensities[i]
                 # Check if the identifier contains the shortest identifier along with some other string
                 if shortest_identifier != identifier and shortest_identifier in identifier:
                     total_conversion += abundances[i]
 
             # Store the summed relative abundance in the 'conversion_rate' column
             df.at[index, 'conversion_rate'] = total_conversion
+            df.at[index, 'sum_intensity'] = total_intensity
 
         # Check replicates, calculate mean/std and store number of replicates used for the mean
         df['mean_conversion_rate'] = None
@@ -147,22 +155,29 @@ def process_folder(input_folder, output_file=None):
                     break
                 i += 1
 
-            # Calculate mean and std for the replicate group
+            # Calculate mean and weighted std for the replicate group
             if replicate_group:
                 conversion_rates = df.loc[replicate_group, 'conversion_rate'].dropna()
+                sum_intensities = df.loc[replicate_group, 'sum_intensity'].dropna()
 
-                if not conversion_rates.empty:
-                    mean_conversion = conversion_rates.mean()
+                if not conversion_rates.empty and len(conversion_rates) == len(sum_intensities):
+                    # Calculate weighted mean
+                    weighted_mean = np.average(conversion_rates, weights=sum_intensities)
+
+                    # Calculate weighted std dev
+                    if len(conversion_rates) > 1:
+                        # Weighted standard deviation formula
+                        mean_diff_squared = ((conversion_rates - weighted_mean) ** 2)
+                        weighted_variance = np.average(mean_diff_squared, weights=sum_intensities)
+                        weighted_std_dev = np.sqrt(weighted_variance)
+                    else:
+                        weighted_std_dev = 0.0
+
                     replicates_used = len(conversion_rates)
 
-                    # Calculate std dev, if only one value, set std_dev to 0.0
-                    if len(conversion_rates) > 1:
-                        std_dev = conversion_rates.std()
-                    else:
-                        std_dev = 0.0
-
-                    df.loc[replicate_group, 'mean_conversion_rate'] = mean_conversion
-                    df.loc[replicate_group, 'mean_std_dev'] = std_dev
+                    # Store the weighted mean and weighted std dev in the dataframe
+                    df.loc[replicate_group, 'mean_conversion_rate'] = weighted_mean
+                    df.loc[replicate_group, 'mean_std_dev'] = weighted_std_dev
                     df.loc[replicate_group, 'replicates_used'] = replicates_used
 
         # Determine the output file name

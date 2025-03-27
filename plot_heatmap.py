@@ -49,10 +49,20 @@ def plot_heatmap(mean_csv, std_csv):
 
 
     # Define colors for peptides and enzymes directly as dictionaries
-    color_map = {'A': 'blue', 'B': 'green', 'C': 'red', 'D': 'yellow', 'x': 'orange', 'y': 'purple', 'z': 'brown'}
-
+    color_map = {
+        'ane': '#C0C0C0',
+        'api': '#C39BE1',
+        'ksp': '#BA9B88',
+        'mpr': '#F2A068',
+        'npu': '#8BC167',
+        'pal': '#00CC66',
+        'pba': '#C3C02F',
+        'pbh': '#E7E200',
+        'pha': '#EB6B6B',
+        'xyp': '#53C9D5'
+    }
     # Create the main plot and an additional subplot for the legend
-    fig, (ax, ax_legend) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [5, 1]}, figsize=(12, 6))
+    fig, (ax, ax_legend) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [10, 1]}, figsize=(18, 10))
 
     # Existing heatmap plotting on ax (left subplot)
     ax.set_xticks(np.arange(mean_mod_rates.shape[1]) + 0.5)
@@ -76,11 +86,11 @@ def plot_heatmap(mean_csv, std_csv):
     # Apply dynamic colors to x and y tick labels
     # Generate a list of colors for x-axis labels based on partial matching with column names
     x_colors = [
-        next((color_map[key] for key in color_map if key in col), 'black')
+        next((color_map[key] for key in color_map if key.lower() in col.lower()), 'black')
         for col in mean_mod_rates_df.columns
     ]
     ax.set_xticks(np.arange(mean_mod_rates.shape[1]) + 0.5)  # Set xticks for the labels
-    ax.set_xticklabels(mean_mod_rates_df.columns, fontsize=24, weight='bold', rotation=45, ha='right')
+    ax.set_xticklabels(mean_mod_rates_df.columns, fontsize=16, weight='bold', rotation=45, ha='left')
 
     # Apply colors to x-axis labels directly
     for i, label in enumerate(ax.get_xticklabels()):
@@ -88,11 +98,11 @@ def plot_heatmap(mean_csv, std_csv):
 
     # Generate a list of colors for y-axis labels based on partial matching with column names
     y_colors = [
-        next((color_map[key] for key in color_map if key in idx), 'black')
+        next((color_map[key] for key in color_map if key.lower() in idx.lower()), 'black')
         for idx in mean_mod_rates_df.index
     ]
     ax.set_yticks(np.arange(mean_mod_rates.shape[0]) + 0.5)  # Set yticks for the labels
-    ax.set_yticklabels(mean_mod_rates_df.index, fontsize=24, weight='bold')
+    ax.set_yticklabels(mean_mod_rates_df.index, fontsize=16, weight='bold')
 
     # Apply colors to y-axis labels directly
     for i, label in enumerate(ax.get_yticklabels()):
@@ -122,7 +132,7 @@ def plot_heatmap(mean_csv, std_csv):
             # Formula for area of circle: area = pi * r^2 = pi * (diameter / 2)^2
             size = pi * (max_radius ** 2) * log_sd_val  # Adjust circle size based on standard deviation
             # Plot the circle on the heatmap
-            ax.scatter(j + 0.5, i + 0.5, s=size, color=color)
+            ax.scatter(j + 0.5, i + 0.5, s=size, color=color, edgecolor='black', linewidth=0.1)
 
     # Create color legend for mean values (grayscale)
     sm = plt.cm.ScalarMappable(cmap="Greys", norm=plt.Normalize(vmin=0, vmax=1))
@@ -150,8 +160,8 @@ def plot_heatmap(mean_csv, std_csv):
         ax_legend.text(0.8, legend_y_positions[i], f"{std_val:.2e}", fontsize=10, va='center')
 
     plt.tight_layout()
-    #plt.savefig("heatmap.svg", format='svg')
-    plt.show()
+    plt.savefig("heatmap.svg", format='svg')
+    #plt.show()
 
 
 def main():

@@ -68,8 +68,8 @@ def plot_heatmap(mean_csv, std_csv):
     ax.set_xticks(np.arange(mean_mod_rates.shape[1]) + 0.5)
     ax.set_yticks(np.arange(mean_mod_rates.shape[0]) + 0.5)
 
-    ax.tick_params(axis='x', direction='out', bottom=False, labeltop=True, labelbottom=False)
-    ax.tick_params(axis='y', direction='out', left=False, labelleft=True)
+    ax.tick_params(axis='x', which='major', direction='out', bottom=False, labeltop=True, labelbottom=False)
+    ax.tick_params(axis='y', which='major', direction='out', left=False, labelleft=True)
 
     ax.set_xlim(0, mean_mod_rates.shape[1])
     ax.set_ylim(0, mean_mod_rates.shape[0])
@@ -90,7 +90,7 @@ def plot_heatmap(mean_csv, std_csv):
         for col in mean_mod_rates_df.columns
     ]
     ax.set_xticks(np.arange(mean_mod_rates.shape[1]) + 0.5)  # Set xticks for the labels
-    ax.set_xticklabels(mean_mod_rates_df.columns, fontsize=16, weight='bold', rotation=45, ha='left')
+    ax.set_xticklabels(mean_mod_rates_df.columns, fontsize=24, weight='bold', rotation=30)
 
     # Apply colors to x-axis labels directly
     for i, label in enumerate(ax.get_xticklabels()):
@@ -102,7 +102,7 @@ def plot_heatmap(mean_csv, std_csv):
         for idx in mean_mod_rates_df.index
     ]
     ax.set_yticks(np.arange(mean_mod_rates.shape[0]) + 0.5)  # Set yticks for the labels
-    ax.set_yticklabels(mean_mod_rates_df.index, fontsize=16, weight='bold')
+    ax.set_yticklabels(mean_mod_rates_df.index, fontsize=24, weight='bold')
 
     # Apply colors to y-axis labels directly
     for i, label in enumerate(ax.get_yticklabels()):
@@ -115,7 +115,7 @@ def plot_heatmap(mean_csv, std_csv):
     square_height = plot_height / mean_mod_rates.shape[0]  # height of each data point square
 
     # Calculate the maximum allowed diameter (0.5 * square width)
-    max_diameter = 0.4 * square_width  # Maximum diameter as 50% of the square width
+    max_diameter = 0.48 * square_width  # Maximum diameter as 50% of the square width
     max_radius = max_diameter / 2  # Radius corresponding to the max diameter
 
     # Normalize circle sizes and scale them based on standard deviation
@@ -130,34 +130,34 @@ def plot_heatmap(mean_csv, std_csv):
             color = cmap(mean_val)
             # Calculate the circle size (area) based on standard deviation
             # Formula for area of circle: area = pi * r^2 = pi * (diameter / 2)^2
-            size = pi * (max_radius ** 2) * log_sd_val  # Adjust circle size based on standard deviation
+            size = pi * (max_radius ** 2) * np.sqrt(log_sd_val)  # Adjust circle size based on standard deviation
             # Plot the circle on the heatmap
-            ax.scatter(j + 0.5, i + 0.5, s=size, color=color, edgecolor='black', linewidth=0.1)
+            ax.scatter(j + 0.5, i + 0.5, s=size, color=color, edgecolor='grey', linewidth=0.2)
 
     # Create color legend for mean values (grayscale)
     sm = plt.cm.ScalarMappable(cmap="Greys", norm=plt.Normalize(vmin=0, vmax=1))
     sm.set_array([])  # Empty array needed for ScalarMappable
 
     # Create colorbar and set font size for ticks and label
-    cbar = plt.colorbar(sm, ax=ax)
-    cbar.set_label('Conversion Rate', fontsize=10)  # Set font size for the label
-    cbar.ax.tick_params(labelsize=10)  # Set font size for tick values
+    cbar = plt.colorbar(sm, ax=ax, fraction=0.02)
+    cbar.ax.set_title('Conversion\nRate', fontsize=16, y=1.06)
+    cbar.ax.tick_params(labelsize=16)  # Set font size for tick values
 
     # The legend is drawn on the right subplot
     ax_legend.axis([0, 1, 0, 1])  # Set axis limits for easy positioning
     ax_legend.axis('off')  # Turn off the axis display for a clean look
-    ax_legend.text(0.5, 0.95, "Standard Deviation", fontsize=10, ha='center')
+    ax_legend.text(0.5, 0.9, "Standard\nDeviation", fontsize=16, ha='center')
 
 
     # Define example circles (sizes based on log scale)
-    example_log_values = [1.0, 0.5, 0.1]
-    example_std_values = [10 ** (val * min_log_std_dev) for val in example_log_values]
+    example_std_values = [0.1, 0.01, 0.001]  # Example log values for standard deviation
+    example_log_values = [np.log10(val) / min_log_std_dev for val in example_std_values]
 
-    legend_y_positions = [0.8, 0.5, 0.2]  # Vertical positions for the circles
+    legend_y_positions = [0.75, 0.5, 0.25]  # Vertical positions for the circles
     for i, (log_val, std_val) in enumerate(zip(example_log_values, example_std_values)):
-        size = pi * (max_radius ** 2) * log_val  # Optional scaling to improve visibility
-        ax_legend.scatter(0.5, legend_y_positions[i], s=size, facecolor='none', edgecolor='black', linewidth=2)
-        ax_legend.text(0.8, legend_y_positions[i], f"{std_val:.2e}", fontsize=10, va='center')
+        size = pi * (max_radius ** 2) * np.sqrt(log_val)  # Optional scaling to improve visibility
+        ax_legend.scatter(0.5, legend_y_positions[i], s=size, facecolor='none', edgecolor='black', linewidth=1)
+        ax_legend.text(0.3, legend_y_positions[i] - 0.08, f"{std_val:.3f}", fontsize=16, va='center')
 
     plt.tight_layout()
     plt.savefig("heatmap.svg", format='svg')

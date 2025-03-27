@@ -2,13 +2,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+import matplotlib.cm as cm
 
 
 def plot_heatmap(mean_csv, std_csv):
     # Load data from CSV files with proper error handling
     try:
-        mean_mod_rates_df = pd.read_csv(mean_csv, index_col=0)
-        std_dev_df = pd.read_csv(std_csv, index_col=0)
+        mean_mod_rates_df = pd.read_csv(mean_csv, index_col=0, delimiter=';')
+        std_dev_df = pd.read_csv(std_csv, index_col=0, delimiter=';')
     except Exception as e:
         print(f"Error loading CSV files: {e}")
         return
@@ -34,6 +35,10 @@ def plot_heatmap(mean_csv, std_csv):
     mean_mod_rates = mean_mod_rates_df.to_numpy()
     std_dev = std_dev_df.to_numpy()
 
+    # Set zero values in std_dev to half the minimum non-zero value
+    min_std_dev = np.min(std_dev[np.nonzero(std_dev)])  # Get the minimum value excluding zeros
+    std_dev = np.where(std_dev == 0, min_std_dev / 100, std_dev)  # Replace 0 values with a small value
+
     # Define colors for peptides and enzymes directly as dictionaries
     color_map = {'A': 'blue', 'B': 'green', 'C': 'red', 'D': 'yellow', 'x': 'orange', 'y': 'purple', 'z': 'brown'}
 
@@ -46,6 +51,7 @@ def plot_heatmap(mean_csv, std_csv):
 
     ax.set_xlim(0, mean_mod_rates.shape[1])
     ax.set_ylim(0, mean_mod_rates.shape[0])
+    ax.invert_yaxis()
 
     #Create light grey minor gridlines between the major gridlines
     ax.set_xticks(np.arange(mean_mod_rates.shape[1] + 1), minor=True)
@@ -80,6 +86,9 @@ def plot_heatmap(mean_csv, std_csv):
     for i, label in enumerate(ax.get_yticklabels()):
         label.set_color(y_colors[i])
 
+    # Plot circles based on mean and standard deviation
+    cmap = cm.get_cmap("Greys")  # Use a grayscale colormap
+
     #print the x and y tick labels
     print("\nX-axis Labels:")
     print([[label.get_text(), label.get_color()] for label in ax.get_xticklabels()])
@@ -91,9 +100,15 @@ def plot_heatmap(mean_csv, std_csv):
         for j in range(mean_mod_rates.shape[1]):
             mean_val = mean_mod_rates[i, j]
             sd_val = std_dev[i, j]
-            color = (mean_val, mean_val, mean_val)  # Grayscale color
+            color = cmap(mean_val)  # Grayscale color
             size = 15000 * (1-sd_val)  # Scale size based on standard deviation
             ax.scatter(j + 0.5, i + 0.5, s=size, color=color)
+
+    # Create color legend for mean values (grayscale)
+    sm = plt.cm.ScalarMappable(cmap="Greys", norm=plt.Normalize(vmin=0, vmax=1))  # No need to normalize
+    sm.set_array([])  # Empty array needed for ScalarMappable
+    cbar = plt.colorbar(sm, ax=ax, fraction=0.012, pad=0.04)  # Fraction to control size of colorbar
+    cbar.set_label('Conversion Rate')
 
     plt.tight_layout()
     #plt.savefig("heatmap.svg", format='svg')

@@ -51,8 +51,10 @@ def plot_heatmap(mean_csv, std_csv):
     # Define colors for peptides and enzymes directly as dictionaries
     color_map = {'A': 'blue', 'B': 'green', 'C': 'red', 'D': 'yellow', 'x': 'orange', 'y': 'purple', 'z': 'brown'}
 
-    # Create the plot and axis
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Create the main plot and an additional subplot for the legend
+    fig, (ax, ax_legend) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [5, 1]}, figsize=(12, 6))
+
+    # Existing heatmap plotting on ax (left subplot)
     ax.set_xticks(np.arange(mean_mod_rates.shape[1]) + 0.5)
     ax.set_yticks(np.arange(mean_mod_rates.shape[0]) + 0.5)
 
@@ -103,7 +105,7 @@ def plot_heatmap(mean_csv, std_csv):
     square_height = plot_height / mean_mod_rates.shape[0]  # height of each data point square
 
     # Calculate the maximum allowed diameter (0.5 * square width)
-    max_diameter = 0.5 * square_width  # Maximum diameter as 50% of the square width
+    max_diameter = 0.4 * square_width  # Maximum diameter as 50% of the square width
     max_radius = max_diameter / 2  # Radius corresponding to the max diameter
 
     # Normalize circle sizes and scale them based on standard deviation
@@ -123,10 +125,29 @@ def plot_heatmap(mean_csv, std_csv):
             ax.scatter(j + 0.5, i + 0.5, s=size, color=color)
 
     # Create color legend for mean values (grayscale)
-    sm = plt.cm.ScalarMappable(cmap="Greys", norm=plt.Normalize(vmin=0, vmax=1))  # No need to normalize
+    sm = plt.cm.ScalarMappable(cmap="Greys", norm=plt.Normalize(vmin=0, vmax=1))
     sm.set_array([])  # Empty array needed for ScalarMappable
-    cbar = plt.colorbar(sm, ax=ax, fraction=0.012, pad=0.04)  # Fraction to control size of colorbar
-    cbar.set_label('Conversion Rate')
+
+    # Create colorbar and set font size for ticks and label
+    cbar = plt.colorbar(sm, ax=ax)
+    cbar.set_label('Conversion Rate', fontsize=10)  # Set font size for the label
+    cbar.ax.tick_params(labelsize=10)  # Set font size for tick values
+
+    # The legend is drawn on the right subplot
+    ax_legend.axis([0, 1, 0, 1])  # Set axis limits for easy positioning
+    ax_legend.axis('off')  # Turn off the axis display for a clean look
+    ax_legend.text(0.5, 0.95, "Standard Deviation", fontsize=10, ha='center')
+
+
+    # Define example circles (sizes based on log scale)
+    example_log_values = [1.0, 0.5, 0.1]
+    example_std_values = [10 ** (val * min_log_std_dev) for val in example_log_values]
+
+    legend_y_positions = [0.8, 0.5, 0.2]  # Vertical positions for the circles
+    for i, (log_val, std_val) in enumerate(zip(example_log_values, example_std_values)):
+        size = pi * (max_radius ** 2) * log_val  # Optional scaling to improve visibility
+        ax_legend.scatter(0.5, legend_y_positions[i], s=size, facecolor='none', edgecolor='black', linewidth=2)
+        ax_legend.text(0.8, legend_y_positions[i], f"{std_val:.2e}", fontsize=10, va='center')
 
     plt.tight_layout()
     #plt.savefig("heatmap.svg", format='svg')

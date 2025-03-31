@@ -359,7 +359,34 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     # calculate the logarithm of the minimal intensity
     log_min_intensity = log10(min_intensity)
     # calculate the plot list
-    plot_list = generate_plot_list(analyzed_spectra)
+    plot_list_unfiltered = generate_plot_list(analyzed_spectra)
+
+    # Calculate relative abundances
+    abundances = calculate_abundances(plot_list_unfiltered)
+
+    # Filter out formulas with relative intensity lower than 0.5%
+    filtered_formulas = {formula for formula, (intensity, rel_abundance) in abundances.items() if
+                         rel_abundance >= 0.005}
+
+    # Keep only rows where the formula is in the filtered set
+    plot_list = plot_list_unfiltered[plot_list_unfiltered['formula'].isin(filtered_formulas)]
+
+    # print the plot list
+    if plot_list is None:
+        sys.stdout.write(f"Nothing to plot. The plot list is empty.\n")
+        return None
+    # print the plot list
+    sys.stdout.write(f"Plot list:\n{plot_list_unfiltered}\n")
+
+    # print the abundances
+    sys.stdout.write(f"Abundances:\n{abundances}\n")
+
+    # print the filtered formulas
+    sys.stdout.write(f"Filtered formulas:\n{filtered_formulas}\n")
+
+    # print the filtered plot list
+    sys.stdout.write(f"Filtered plot list:\n{plot_list}\n")
+
 
     # Create a DataFrame with identifiers and their corresponding parent masses sorted by parent mass
     sorted_df = plot_list[['formula', 'parent_mass']].sort_values(by='parent_mass')

@@ -375,18 +375,6 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     if plot_list is None:
         sys.stdout.write(f"Nothing to plot. The plot list is empty.\n")
         return None
-    # print the plot list
-    sys.stdout.write(f"Plot list:\n{plot_list_unfiltered}\n")
-
-    # print the abundances
-    sys.stdout.write(f"Abundances:\n{abundances}\n")
-
-    # print the filtered formulas
-    sys.stdout.write(f"Filtered formulas:\n{filtered_formulas}\n")
-
-    # print the filtered plot list
-    sys.stdout.write(f"Filtered plot list:\n{plot_list}\n")
-
 
     # Create a DataFrame with identifiers and their corresponding parent masses sorted by parent mass
     sorted_df = plot_list[['formula', 'parent_mass']].sort_values(by='parent_mass')

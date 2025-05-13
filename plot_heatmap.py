@@ -59,6 +59,7 @@ def plot_heatmap(mean_csv, std_csv):
         'pba': '#C3C02F',
         'pbh': '#E7E200',
         'pha': '#EB6B6B',
+        'plc': '#6666FE',
         'xyp': '#53C9D5'
     }
     # Create the main plot and an additional subplot for the legend

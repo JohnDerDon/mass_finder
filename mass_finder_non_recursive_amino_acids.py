@@ -393,7 +393,7 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
             "Red1", "Red2", "Red3", "Red4", "Red5", "Red6"
         ],
         "Hex Code": [
-            "#FF36D7", "#D20073", "#800080", "#FF99CC", "#FFB3FF", "#D274C5",  # Pink shades
+            "#FF00FF", "#D20073", "#800080", "#FF99CC", "#FFB3FF", "#D274C5",  # Pink shades
             "#000000", "#4D4D4D", "#AEAEAE", "#D1D1D1", "#6D5B5B", "#4B4B65",  # Grays, with Gray1 as black
             "#FFC700", "#FF9900", "#CC9900", "#FFCC66", "#FFEC00", "#FFFF66",  # Yellow shades
             "#009900", "#005500", "#2ECC40", "#669900", "#339966", "#8ED973",  # Adjusted Green shades

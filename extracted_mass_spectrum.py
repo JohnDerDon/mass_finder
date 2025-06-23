@@ -256,12 +256,12 @@ def choose_plot_color(input_plot_color):
             "Red1", "Red2", "Red3", "Red4", "Red5", "Red6"
         ],
         "Hex Code": [
-            "#FF36D7", "#FF1A9A", "#FF66D9", "#FF66B2", "#FF99CC", "#FFB3E6",  # Pink shades
-            "#000000", "#1A1A1A", "#333333", "#4D4D4D", "#666666", "#808080",  # Grays, with Gray1 as black
-            "#FFD700", "#FFC700", "#FFE700", "#FFF700", "#FFF300", "#FFEC00",  # Yellow shades
-            "#2ECC40", "#28B600", "#1D9A00", "#009900", "#007700", "#005500",  # Adjusted Green shades
-            "#3498DB", "#2980B9", "#1E88E5", "#007BB8", "#005EB8", "#004B9A",  # Adjusted Blue shades
-            "#E74C3C", "#C0392B", "#D50000", "#A50000", "#FF5733", "#FF3333"  # Red shades
+            "#FF00FF", "#D20073", "#800080", "#FF99CC", "#FFB3FF", "#D274C5",  # Pink shades
+            "#000000", "#4D4D4D", "#AEAEAE", "#D1D1D1", "#6D5B5B", "#4B4B65",  # Grays, with Gray1 as black
+            "#FFC700", "#FF9900", "#CC9900", "#FFCC66", "#FFEC00", "#FFFF66",  # Yellow shades
+            "#009900", "#005500", "#2ECC40", "#669900", "#339966", "#8ED973",  # Adjusted Green shades
+            "#1C0ED8", "#1877CE", "#000099", "#00FFFF", "#89C1FF", "#5807F9",  # Adjusted Blue shades
+            "#C00000", "#FF2D2D", "#D86E6E", "#820000", "#F9B08F", "#EE4F08"  # Red shades
         ]
     }
 

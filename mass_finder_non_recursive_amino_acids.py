@@ -408,14 +408,38 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     # Assign a color to each unique identifier
     colors = {}
 
-    # Helper function to check for fatty acid pattern
+    # helper functions to determine the color based on the identifier
     def is_fatty_acid_pattern(part):
-        # Check if there is a match for the fatty acid moiety pattern
-        return re.match(r"C\d+", part) is not None
+        """
+        Returns True if `part` matches a fatty acid pattern like:
+        - C16:1
+        - C8:0(3-OH)
+        - C16H32O2
+        """
+        # Pattern 1: Shorthand like C16:1 with optional annotations (e.g., (3-OH), (9Z))
+        shorthand_pattern = r"C\d{1,2}:\d{1,2}(\([^)]+\))?"
+
+        # Pattern 2: Sum formula like C16H32O2
+        sum_formula_pattern = r"C\d{1,2}H\d{1,2}O\d"
+
+        return (
+                re.fullmatch(shorthand_pattern, part) is not None or
+                re.fullmatch(sum_formula_pattern, part) is not None
+        )
+
+    def is_arginase_pattern(part):
+        """
+        Returns True if `part` matches the arginase-related formula:
+        - C1H2N2
+        - CH2N2 (shorthand without the '1')
+        """
+        arginase_pattern = r"(C1H2N2|CH2N2)"
+        return re.fullmatch(arginase_pattern, part) is not None
 
     # Assign colors based on conditions
     pink_index = 0
     gray_index = 0
+    green_index = 0
 
     for identifier in sorted_unique_identifiers:
         # Split the identifier by the pattern (X) where X is a positive or negative digit, e.g., (1), (2), etc.
@@ -427,6 +451,10 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
             color = color_df[color_df["Color Identifier"] == f"Pink{pink_index + 1}"]["Hex Code"].values[0]
             pink_index = (pink_index + 1) % 6  # Loop through Pink1 to Pink6
         # Check if any part matches the amino acid condition
+        elif any(is_arginase_pattern(part) for part in parts):
+            # Assign green color
+            color = color_df[color_df["Color Identifier"] == f"Green{green_index + 1}"]["Hex Code"].values[0]
+            green_index = (green_index + 1) % 6  # Loop through Green1 to Green6
         else:
             # Assign gray color
             color = color_df[color_df["Color Identifier"] == f"Gray{gray_index + 1}"]["Hex Code"].values[0]

@@ -26,7 +26,7 @@ from textwrap import wrap
 
 
 
-def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_intensity):
+def analyze_mass_spec(spectrum, mass_range, time_range, accuracy, formulas_with_charge, min_intensity):
     """
     Analyzes a mass spectrum to find peaks matching theoretical masses within a specified accuracy range.
 
@@ -45,11 +45,16 @@ def analyze_mass_spec(spectrum, mass_range, accuracy, formulas_with_charge, min_
     if spectrum.get('msLevel', 0) == 1:  # Check if the spectrum is MS1
         mz_array = np.array(spectrum.get('m/z array', []))
         intensity_array = np.array(spectrum.get('intensity array', []))
+        retention_time = float(spectrum.get('retentionTime', 0))
     else:
         return None
 
     # Check if arrays are empty
     if mz_array.size == 0 or intensity_array.size == 0:
+        return None
+
+    # check if retention time is within the specified time range
+    if not (time_range[0] <= retention_time <= time_range[1]):
         return None
 
     matching_masses = []
@@ -353,7 +358,7 @@ def calculate_abundances(plot_list):
 
 
 
-def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrite, full_range, min_intensity):
+def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrite, custom_plot_size, min_intensity):
     # Plot the analyzed spectra in a single graph
 
     # calculate the logarithm of the minimal intensity
@@ -473,12 +478,12 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
                 suffix += 1
 
     # Plot the results
-    plot_results_subplots(plot_list, output_file, time_range, mass_range, full_range, sorted_unique_identifiers,
+    plot_results_subplots(plot_list, output_file, time_range, mass_range, custom_plot_size, sorted_unique_identifiers,
                           colors, log_min_intensity, suffix, min_intensity)
 
 
 def plot_results_subplots(plot_list, output_file, time_range, mass_range,
-                          full_range, sorted_unique_identifiers, colors, log_min_intensity, suffix, min_intensity):
+                          custom_plot_size, sorted_unique_identifiers, colors, log_min_intensity, suffix, min_intensity):
     # Define the plot
     fig = plt.figure(figsize=(18, 10))
     # Define the title of the plot
@@ -506,10 +511,10 @@ def plot_results_subplots(plot_list, output_file, time_range, mass_range,
     plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors)
 
     # Plot the XIC
-    plot_XIC(ax_XIC, plot_list, time_range, full_range, sorted_unique_identifiers, colors, min_intensity, ax_legend)
+    plot_XIC(ax_XIC, plot_list, time_range, custom_plot_size, sorted_unique_identifiers, colors, min_intensity, ax_legend)
 
     # Plot the scatter plot
-    plot_scatter(ax_scatter, plot_list, time_range, mass_range, full_range, sorted_unique_identifiers,
+    plot_scatter(ax_scatter, plot_list, time_range, mass_range, custom_plot_size, sorted_unique_identifiers,
                  colors, log_min_intensity, ax_colorbar)
 
     # Save the plot
@@ -561,7 +566,7 @@ def plot_stacked_bar(ax_abundance, plot_list, sorted_unique_identifiers, colors)
 
 
 def plot_scatter(ax_scatter, plot_list, time_range, mass_range,
-                 full_range, sorted_unique_identifiers, colors, log_min_intensity, ax_colorbar):
+                 custom_plot_size, sorted_unique_identifiers, colors, log_min_intensity, ax_colorbar):
 
     # plot the scatter plot on the main axes
     for i, identifier in enumerate(sorted_unique_identifiers):
@@ -577,8 +582,8 @@ def plot_scatter(ax_scatter, plot_list, time_range, mass_range,
     ax_scatter.set_ylabel('m/z', fontsize=18)
     ax_scatter.tick_params(axis='both', which='major', labelsize=18)
 
-    # check if full_range is true, otherwise adapt range
-    if full_range:
+    # check if custom_plot_size is true, otherwise adapt range
+    if custom_plot_size:
         ax_scatter.set_xlim((min(time_range), max(time_range)))
         ax_scatter.set_ylim((min(mass_range), max(mass_range)))
     else:
@@ -600,7 +605,7 @@ def plot_scatter(ax_scatter, plot_list, time_range, mass_range,
     cbar.ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
 
 
-def plot_XIC(ax_XIC, plot_list, time_range, full_range,
+def plot_XIC(ax_XIC, plot_list, time_range, custom_plot_size,
              sorted_unique_identifiers, colors, min_intensity, ax_legend):
     max_values = plot_list.groupby('formula')['intensity'].max()  # Get the maximum intensity for each identifier
     max_values_sorted = max_values.sort_values(ascending=False)
@@ -675,8 +680,8 @@ def plot_XIC(ax_XIC, plot_list, time_range, full_range,
 
     ax_XIC.set_ylim(0, max_intensity_overall * 1.1)
 
-    # Check if full_range is true, otherwise adapt time range
-    if full_range:
+    # Check if custom_plot_size is true, otherwise adapt time range
+    if custom_plot_size:
         ax_XIC.set_xlim((min(time_range), max(time_range)))
     else:
         ax_XIC.set_xlim((0.9 * min(plot_list['time']), 1.1 * max(plot_list['time'])))
@@ -740,13 +745,10 @@ def main():
     parser.add_argument('-overwrite',
                         help='If overwrite is True, the data saved from previous runs will be overwritten.',
                         action='store_true')
-    parser.add_argument('-full_range',
-                        help='If full_range is True, the output plot will span the entire time and mass range. Useful for comparing samples, but less ideal to check a single file. Default: False',
-                        action='store_true')
     parser.add_argument('-monoisotopic',
                         help='If monoisotopic is True, the monoisotopic mass peaks will be searched for instead of the calculated highest abundant mass peak. Default: False',
                         action='store_true')
-    parser.add_argument('-plot_time_range', help='Time range to use for plotting', default='0-30', type=str)
+    parser.add_argument('-plot_time_range', help='Time range to use for plotting', default='0-60', type=str)
     parser.add_argument('-plot_mass_range', help='Mass range to use for plotting', default='200-2000', type=str)
     args = parser.parse_args()
 
@@ -773,8 +775,8 @@ def main():
     formulas_with_charge = generate_formula_with_charge(generate_formulas(args.elements), mass_range, args.monoisotopic)
 
     # Check if the plot_time_range and plot_mass_range are set to the default values
-    # If not, set full_range to True, since full_range is needed to trigger personal plot time and mass ranges
-    full_range = args.full_range if args.plot_time_range == '0-30' and args.plot_mass_range == '200-2000' else True
+    # set custom_plot_size to True, if plot time range or plot mass ranges are not the default values
+    custom_plot_size = False if args.plot_time_range == '0-30' and args.plot_mass_range == '200-2000' else True
 
     # Analyze for each file all spectra in parallel. Write output of each file to a txt
     pool = mp.Pool(args.threads)
@@ -788,7 +790,7 @@ def main():
         sys.stdout.write(f"Started parsing {input_file}\n")
         data = mzxml.MzXML(input_file, use_index=True)
         min_index, max_index = [int(data.time[float(time)]['id']) for time in time_range]
-        analyzed_spectra = pool.starmap(analyze_mass_spec, [(data.get_by_index(int(index) - 1), mass_range,
+        analyzed_spectra = pool.starmap(analyze_mass_spec, [(data.get_by_index(int(index) - 1), mass_range, time_range,
                                                              args.accuracy, formulas_with_charge, args.min_intensity)
                                                             for index in range(min_index, max_index)])
         analyzed_spectra = [spectrum for spectrum in analyzed_spectra if spectrum is not None]
@@ -840,12 +842,10 @@ def main():
                         f"\tExperimental Mass: {peak['experimental_mass']}\tIntensity: {peak['intensity']}\tIdentifier: {peak['formula']}\tTheoretical mass: {peak['theoretical_mass']}\tParent mass: {peak['parent_mass']}\tCharge state: {peak['charge_state']}\tIsotope peak number: {peak['isotope_peak_number']}" + "\n")
 
         # Plot the results
-        # Check if the full range is set to True
-        plot_time_range = [round(float(data.time[float(time)]['retentionTime']), 2) for time in
-                           args.plot_time_range.split('-')]
+        plot_time_range = [float(time) for time in args.plot_time_range.split('-')]
         plot_mass_range = [float(mass) for mass in args.plot_mass_range.split('-')]
         plot_results(analyzed_spectra, os.path.splitext(input_file)[0], plot_time_range, plot_mass_range,
-                           args.overwrite, full_range, args.min_intensity)
+                           args.overwrite, custom_plot_size, args.min_intensity)
     pool.close()
 
 

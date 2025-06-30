@@ -387,23 +387,36 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
     sorted_unique_identifiers = sorted_df['formula'].drop_duplicates().tolist()
 
     # Define the colors for the plot
-    # Define the color palette
+    # Create a DataFrame with color identifiers and their corresponding hex codes
+    # use 6 colors for each category (Pink, Gray, Yellow, Green, Blue, Red)
+    # for each color, create 8 shades
     color_data = {
         "Color Identifier": [
-            "Pink1", "Pink2", "Pink3", "Pink4", "Pink5", "Pink6",
-            "Gray1", "Gray2", "Gray3", "Gray4", "Gray5", "Gray6",
-            "Yellow1", "Yellow2", "Yellow3", "Yellow4", "Yellow5", "Yellow6",
-            "Green1", "Green2", "Green3", "Green4", "Green5", "Green6",
-            "Blue1", "Blue2", "Blue3", "Blue4", "Blue5", "Blue6",
-            "Red1", "Red2", "Red3", "Red4", "Red5", "Red6"
+            "Pink1", "Pink2", "Pink3", "Pink4", "Pink5", "Pink6", "Pink7", "Pink8",
+            "Gray1", "Gray2", "Gray3", "Gray4", "Gray5", "Gray6", "Gray7", "Gray8",
+            "Yellow1", "Yellow2", "Yellow3", "Yellow4", "Yellow5", "Yellow6", "Yellow7", "Yellow8",
+            "Green1", "Green2", "Green3", "Green4", "Green5", "Green6", "Green7", "Green8",
+            "Blue1", "Blue2", "Blue3", "Blue4", "Blue5", "Blue6", "Blue7", "Blue8",
+            "Red1", "Red2", "Red3", "Red4", "Red5", "Red6", "Red7", "Red8"
         ],
         "Hex Code": [
-            "#FF00FF", "#D20073", "#800080", "#FF99CC", "#FFB3FF", "#D274C5",  # Pink shades
-            "#000000", "#4D4D4D", "#AEAEAE", "#D1D1D1", "#6D5B5B", "#4B4B65",  # Grays, with Gray1 as black
-            "#FFC700", "#FF9900", "#CC9900", "#FFCC66", "#FFEC00", "#FFFF66",  # Yellow shades
-            "#009900", "#005500", "#2ECC40", "#669900", "#339966", "#8ED973",  # Adjusted Green shades
-            "#1C0ED8", "#1877CE", "#000099", "#00FFFF", "#89C1FF", "#5807F9",  # Adjusted Blue shades
-            "#C00000", "#FF2D2D", "#D86E6E", "#820000", "#F9B08F", "#EE4F08"  # Red shades
+            # Pinks
+            "#FF00FF", "#D20073", "#800080", "#FF99CC", "#FFB3FF", "#D274C5", "#FF69B4", "#E75480",
+
+            # Grays
+            "#000000", "#4D4D4D", "#AEAEAE", "#D1D1D1", "#6D5B5B", "#4B4B65", "#888888", "#E5E5E5",
+
+            # Yellows
+            "#FFC700", "#FF9900", "#CC9900", "#FFCC66", "#FFEC00", "#FFFF66", "#FFD700", "#FFFACD",
+
+            # Greens
+            "#009900", "#005500", "#2ECC40", "#669900", "#339966", "#8ED973", "#00FF7F", "#3CB371",
+
+            # Blues
+            "#1C0ED8", "#1877CE", "#000099", "#00FFFF", "#89C1FF", "#5807F9", "#4682B4", "#87CEEB",
+
+            # Reds
+            "#C00000", "#FF2D2D", "#D86E6E", "#820000", "#F9B08F", "#EE4F08", "#FF7F7F", "#B22222"
         ]
     }
 

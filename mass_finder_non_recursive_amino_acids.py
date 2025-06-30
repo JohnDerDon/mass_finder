@@ -776,7 +776,7 @@ def main():
 
     # Check if the plot_time_range and plot_mass_range are set to the default values
     # set custom_plot_size to True, if plot time range or plot mass ranges are not the default values
-    custom_plot_size = False if args.plot_time_range == '0-30' and args.plot_mass_range == '200-2000' else True
+    custom_plot_size = False if args.plot_time_range == '0-60' and args.plot_mass_range == '200-2000' else True
 
     # Analyze for each file all spectra in parallel. Write output of each file to a txt
     pool = mp.Pool(args.threads)

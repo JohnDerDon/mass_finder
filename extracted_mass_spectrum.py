@@ -16,6 +16,7 @@ import matplotlib.ticker as ticker
 import matplotlib.patches as mpatches
 from pyteomics import mzxml
 import multiprocess as mp
+from pyteomics import mass as pymass
 
 
 def append_suffix_to_file(file, overwrite):
@@ -77,7 +78,7 @@ def generate_plot_dataframe(analyzed_spectra, ppm_binning):
     """
     Create a DataFrame for plotting by summing the intensities of masses within the specified ppm range.
     Normalizes the total_intensity values by setting the highest total_intensity to 1.
-    Adds a column that indicates whether a mass is the highest intensity in its 0.6 Da range, labeled as True or False.
+    Adds a column that indicates whether a mass is the highest intensity in its 1.1 Da range, labeled as True or False.
     :param analyzed_spectra: List of DataFrames containing analyzed spectra.
     :param ppm_binning: PPM range for mass binning.
     :return: DataFrame of summed masses, normalized intensities, and a label.
@@ -135,9 +136,9 @@ def generate_plot_dataframe(analyzed_spectra, ppm_binning):
             labels.append(True)
             continue
 
-        # Check if there is a higher intensity mass within 0.6 Da range
-        within_range = result_df[(result_df['mass'] >= current_mass - 0.6) &
-                                 (result_df['mass'] <= current_mass + 0.6) &
+        # Check if there is a higher intensity mass within 1.1 Da range
+        within_range = result_df[(result_df['mass'] >= current_mass - 1.1) &
+                                 (result_df['mass'] <= current_mass + 1.1) &
                                  (result_df['normalized_intensity'] > row['normalized_intensity'])]
 
         if within_range.empty:
@@ -160,6 +161,8 @@ def generate_plot_dataframe_with_charge_states(plot_dataframe, charge_range, ppm
     :param plot_label_intensity: Minimum intensity threshold for labeling.
     :return: DataFrame with charge states assigned.
     """
+    mass_neutron = pymass.nist_mass['C'][13][0] - pymass.nist_mass['C'][12][0]
+
     plot_dataframe_charge_states = plot_dataframe.copy()
     # Iterate over peaks to determine charge states
     for index, row in plot_dataframe_charge_states.iterrows():
@@ -185,7 +188,7 @@ def generate_plot_dataframe_with_charge_states(plot_dataframe, charge_range, ppm
                 mz_current = mz_main
 
                 while True:
-                    expected_diff = 1.0 / charge
+                    expected_diff = mass_neutron / charge
                     mz_expected = mz_current + direction * expected_diff
 
                     # Check for peaks that are close to the expected m/z value and are unassigned

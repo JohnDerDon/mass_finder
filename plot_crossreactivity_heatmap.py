@@ -5,12 +5,11 @@ import argparse
 import matplotlib.cm as cm
 from math import pi
 
-
-def plot_heatmap(mean_csv, std_csv):
+def plot_heatmap(mean_csv, sum_intensity_csv):
     # Load data from CSV files with proper error handling
     try:
         mean_mod_rates_df = pd.read_csv(mean_csv, index_col=0, delimiter=';')
-        std_dev_df = pd.read_csv(std_csv, index_col=0, delimiter=';')
+        sum_intensity_df = pd.read_csv(sum_intensity_csv, index_col=0, delimiter=';')
     except Exception as e:
         print(f"Error loading CSV files: {e}")
         return
@@ -18,35 +17,32 @@ def plot_heatmap(mean_csv, std_csv):
     # Quality control: Print the DataFrames
     print("\nLoaded Mean Modification Rates DataFrame:")
     print(mean_mod_rates_df)
-    print("\nLoaded Standard Deviation DataFrame:")
-    print(std_dev_df)
+    print("\nLoaded Sum Intensity DataFrame:")
+    print(sum_intensity_df)
 
     # Check for NaN values in the dataframes
-    if mean_mod_rates_df.isnull().any().any() or std_dev_df.isnull().any().any():
+    if mean_mod_rates_df.isnull().any().any() or sum_intensity_df.isnull().any().any():
         print("Warning: Found NaN values in the input data.")
         mean_mod_rates_df = mean_mod_rates_df.fillna(0)
-        std_dev_df = std_dev_df.fillna(0)
+        sum_intensity_df = sum_intensity_df.fillna(0)
 
     # Ensure same shape
-    if mean_mod_rates_df.shape != std_dev_df.shape:
-        print("Error: The shape of mean_mod_rates.csv and std_dev.csv do not match.")
+    if mean_mod_rates_df.shape != sum_intensity_df.shape:
+        print("Error: The shape of mean_mod_rates.csv and sum_intensity.csv do not match.")
         return
 
     # Convert DataFrames to numpy arrays
     mean_mod_rates = mean_mod_rates_df.to_numpy()
-    std_dev = std_dev_df.to_numpy()
+    sum_intensity = sum_intensity_df.to_numpy()
 
-    # Set zero values in std_dev to half the minimum non-zero value
-    min_std_dev = np.min(std_dev[np.nonzero(std_dev)])  # Get the minimum value excluding zeros
-    std_dev = np.where(std_dev == 0, min_std_dev / 2, std_dev)  # Replace 0 values with a small value
+    # Set zero or negative values in sum_intensity to a very small positive value
+    sum_intensity_safe = np.where(sum_intensity <= 0, 1e-10, sum_intensity)
 
-    # Convert std_dev to logarithmic values (base 10)
-    log_std_dev = np.log10(std_dev)
-    min_log_std_dev = np.min(log_std_dev)  # Get the maximum log value for normalization
+    # Compute log10 of sum intensity
+    log_sum_intensity = np.log10(sum_intensity_safe)
 
-    # Normalize log_std_dev so that the highest value equals 1
-    log_std_dev = log_std_dev / min_log_std_dev
-
+    # Normalize by maximum expected log value (10)
+    normalized_log_sum = log_sum_intensity / 10.0  # relative size 0..1
 
     # Define colors for peptides and enzymes directly as dictionaries
     color_map = {
@@ -62,6 +58,7 @@ def plot_heatmap(mean_csv, std_csv):
         'plc': '#6666FE',
         'xyp': '#53C9D5'
     }
+
     # Create the main plot and an additional subplot for the legend
     fig, (ax, ax_legend) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [10, 1]}, figsize=(18, 10))
 
@@ -85,83 +82,104 @@ def plot_heatmap(mean_csv, std_csv):
     ax.set_aspect('equal', adjustable='box')
 
     # Apply dynamic colors to x and y tick labels
-    # Generate a list of colors for x-axis labels based on partial matching with column names
     x_colors = [
         next((color_map[key] for key in color_map if key.lower() in col.lower()), 'black')
         for col in mean_mod_rates_df.columns
     ]
-    ax.set_xticks(np.arange(mean_mod_rates.shape[1]) + 0.5)  # Set xticks for the labels
+    ax.set_xticks(np.arange(mean_mod_rates.shape[1]) + 0.5)
     ax.set_xticklabels(mean_mod_rates_df.columns, fontsize=24, weight='bold', rotation=30)
-
-    # Apply colors to x-axis labels directly
     for i, label in enumerate(ax.get_xticklabels()):
         label.set_color(x_colors[i])
 
-    # Generate a list of colors for y-axis labels based on partial matching with column names
     y_colors = [
         next((color_map[key] for key in color_map if key.lower() in idx.lower()), 'black')
         for idx in mean_mod_rates_df.index
     ]
-    ax.set_yticks(np.arange(mean_mod_rates.shape[0]) + 0.5)  # Set yticks for the labels
+    ax.set_yticks(np.arange(mean_mod_rates.shape[0]) + 0.5)
     ax.set_yticklabels(mean_mod_rates_df.index, fontsize=24, weight='bold')
-
-    # Apply colors to y-axis labels directly
     for i, label in enumerate(ax.get_yticklabels()):
         label.set_color(y_colors[i])
 
     # Calculate the width of each square (data point) on the heatmap
-    plot_width = fig.get_size_inches()[0] * fig.dpi  # Get plot width in pixels
-    plot_height = fig.get_size_inches()[1] * fig.dpi  # Get plot height in pixels
-    square_width = plot_width / mean_mod_rates.shape[1]  # width of each data point square
-    square_height = plot_height / mean_mod_rates.shape[0]  # height of each data point square
+    # Get the corners of a single cell in display coordinates
+    x0, y0 = ax.transData.transform((0, 0))
+    x1, y1 = ax.transData.transform((1, 1))  # 1 unit over and 1 unit up
 
-    # Calculate the maximum allowed diameter (0.5 * square width)
-    max_diameter = 0.48 * square_width  # Maximum diameter as 50% of the square width
-    max_radius = max_diameter / 2  # Radius corresponding to the max diameter
+    # Cell width and height in pixels
+    cell_width_px = abs(x1 - x0)
+    cell_height_px = abs(y1 - y0)
 
-    # Normalize circle sizes and scale them based on standard deviation
-    cmap = cm.get_cmap("Greys")  # Use a grayscale colormap
+    # Convert pixels to points (1 point = 1/72 inch, fig.dpi pixels per inch)
+    cell_width_points = cell_width_px * 72.0 / fig.dpi
+    cell_height_points = cell_height_px * 72.0 / fig.dpi
 
-    # Plot circles based on mean and standard deviation
+    # Take the smaller one as the maximum diameter
+    max_diameter_points = max(cell_width_points, cell_height_points)
+
+    # Scatter `s` is area in points^2, so radius = max_diameter_points / 2
+    max_radius_points = max_diameter_points / 2
+
+    print(f"Cell width in points: {cell_width_points}, Cell height in points: {cell_height_points}")
+    print(f"Cell area in points^2: {cell_width_points * cell_height_points}")
+    print(f"Calculated max_radius_points: {max_radius_points}")
+
+    # Normalize circle sizes and scale them based on log_sum_intensity
+    cmap = plt.colormaps["Greys"]  # Use a grayscale colormap
+
+    # Plot circles based on mean (color) and sum intensity (size)
     for i in range(mean_mod_rates.shape[0]):
         for j in range(mean_mod_rates.shape[1]):
-            mean_val = mean_mod_rates[i, j]
-            log_sd_val = log_std_dev[i, j]  # Invert the log value for better visualization
-            # Grayscale color based on mean value
+            mean_val = mean_mod_rates[i, j]  # color is based on mean conversion rate
+            intensity_val = sum_intensity[i, j]  # circle size is based on sum intensity
+
+            # Handle invalid/zero values safely for log10
+            if intensity_val <= 0:
+                radius_points = 0.0
+            else:
+                log_val = np.log10(intensity_val)  # log10 scaling
+                # Clamp to [0,10] since max log10 is defined as 10 in your spec
+                log_val = min(max(log_val, 0), 10)
+                radius_factor = log_val / 10.0  # normalize into [0,1]
+                radius_points = max_radius_points * radius_factor
+
+            print(f"Radius factor for cell ({i},{j}): {radius_factor}")
+            print(f"Circle area as square for cell ({i},{j}): {(radius_points * 2) ** 2}")
+
+            # Circle size (area) based on normalized log intensity
+            size = pi * (radius_points ** 2)
+
+            # Grayscale color based on mean conversion rate
             color = cmap(mean_val)
-            # Calculate the circle size (area) based on standard deviation
-            # Formula for area of circle: area = pi * r^2 = pi * (diameter / 2)^2
-            size = pi * (max_radius ** 2) * np.sqrt(log_sd_val)  # Adjust circle size based on standard deviation
-            # Plot the circle on the heatmap
-            ax.scatter(j + 0.5, i + 0.5, s=size, color=color, edgecolor='grey', linewidth=0.2)
+
+            # Draw circle if size > 0
+            if size > 0:
+                ax.scatter(j + 0.5, i + 0.5, s=size,
+                           color=color, edgecolor='#555555', linewidth=0.2)
 
     # Create color legend for mean values (grayscale)
     sm = plt.cm.ScalarMappable(cmap="Greys", norm=plt.Normalize(vmin=0, vmax=1))
-    sm.set_array([])  # Empty array needed for ScalarMappable
-
-    # Create colorbar and set font size for ticks and label
+    sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, fraction=0.02)
     cbar.ax.set_title('Conversion\nRate', fontsize=16, y=1.06)
-    cbar.ax.tick_params(labelsize=16)  # Set font size for tick values
+    cbar.ax.tick_params(labelsize=16)
 
-    # The legend is drawn on the right subplot
-    ax_legend.axis([0, 1, 0, 1])  # Set axis limits for easy positioning
-    ax_legend.axis('off')  # Turn off the axis display for a clean look
-    ax_legend.text(0.5, 0.9, "Standard\nDeviation", fontsize=16, ha='center')
+    # Legend for circle sizes
+    ax_legend.axis([0, 1, 0, 1])
+    ax_legend.axis('off')
+    ax_legend.text(0.5, 0.9, "Sum Intensity", fontsize=16, ha='center')
 
+    example_sum_values = [10**9, 10**7, 10**5]  # example values to cover log range
+    normalized_example = np.log10(example_sum_values) / 10.0
+    legend_y_positions = [0.75, 0.5, 0.25]
 
-    # Define example circles (sizes based on log scale)
-    example_std_values = [0.1, 0.01, 0.001]  # Example log values for standard deviation
-    example_log_values = [np.log10(val) / min_log_std_dev for val in example_std_values]
-
-    legend_y_positions = [0.75, 0.5, 0.25]  # Vertical positions for the circles
-    for i, (log_val, std_val) in enumerate(zip(example_log_values, example_std_values)):
-        size = pi * (max_radius ** 2) * np.sqrt(log_val)  # Optional scaling to improve visibility
+    for i, (norm_val, sum_val) in enumerate(zip(normalized_example, example_sum_values)):
+        radius_norm_points = max_radius_points * norm_val
+        size = pi * (radius_norm_points ** 2)
         ax_legend.scatter(0.5, legend_y_positions[i], s=size, facecolor='none', edgecolor='black', linewidth=1)
-        ax_legend.text(0.3, legend_y_positions[i] - 0.08, f"{std_val:.3f}", fontsize=16, va='center')
+        ax_legend.text(0.5, legend_y_positions[i]-0.08, f"{sum_val:.1e}", fontsize=12, ha='center')
 
     plt.tight_layout()
-    plt.savefig("heatmap.svg", format='svg')
+    plt.savefig("heatmap_sum_intensity.svg", format='svg')
     #plt.show()
 
 
@@ -169,10 +187,10 @@ def main():
     parser = argparse.ArgumentParser(description="Generate a heatmap from two CSV files.")
     parser.add_argument('-mean_csv', type=str, required=True,
                         help="Path to the CSV file containing mean modification rates.")
-    parser.add_argument('-std_dev_csv', type=str, required=True,
-                        help="Path to the CSV file containing standard deviations.")
+    parser.add_argument('-sum_intensity_csv', type=str, required=True,
+                        help="Path to the CSV file containing sum intensity values.")
     args = parser.parse_args()
-    plot_heatmap(args.mean_csv, args.std_dev_csv)
+    plot_heatmap(args.mean_csv, args.sum_intensity_csv)
 
 
 if __name__ == '__main__':

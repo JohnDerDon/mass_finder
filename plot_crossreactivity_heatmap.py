@@ -89,7 +89,7 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv):
         for col in mean_mod_rates_df.columns
     ]
     ax.set_xticks(np.arange(mean_mod_rates.shape[1]) + 0.5)
-    ax.set_xticklabels(mean_mod_rates_df.columns, fontsize=24, weight='bold', rotation=30)
+    ax.set_xticklabels(mean_mod_rates_df.columns, fontsize=24, weight='bold', rotation=45)
     for i, label in enumerate(ax.get_xticklabels()):
         label.set_color(x_colors[i])
 

@@ -174,6 +174,14 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
                 ax.scatter(j + 0.5, i + 0.5, s=100,  # fixed size for visibility
                            color='black', marker=quality_marker_map[qual_val], edgecolor='none')
 
+    # Create color legend for mean values (grayscale)
+    sm = plt.cm.ScalarMappable(cmap="Greys", norm=plt.Normalize(vmin=0, vmax=1))
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax, fraction=0.023)
+    cbar.ax.set_title('Conversion\nRate', fontsize=16, y=1.035)
+    cbar.ax.tick_params(labelsize=16)
+    cbar.ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
+
     # Legend for circle standard deviation sizes
     ax_legend.axis([0, 1, 0, 1])
     ax_legend.axis('off')
@@ -192,14 +200,6 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
         ax_legend.scatter(0.5, legend_y_positions[i], s=size_sum, facecolor='none', edgecolor='black', linewidth=0.2)
         ax_legend.scatter(0.5, legend_y_positions[i], s=size, facecolor='black', edgecolor='none')
         ax_legend.text(0.5, legend_y_positions[i]-0.07, f"{std_dev_value:.2f}", fontsize=16, ha='center')
-
-    # Create color legend for mean values (grayscale)
-    sm = plt.cm.ScalarMappable(cmap="Greys", norm=plt.Normalize(vmin=0, vmax=1))
-    sm.set_array([])
-    cbar = plt.colorbar(sm, ax=ax, fraction=0.024)
-    cbar.ax.set_title('Conversion\nRate', fontsize=16, y=1.025)
-    cbar.ax.tick_params(labelsize=16)
-    cbar.ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
 
     # Legend for circle intensity sizes
     ax_legend.axis([0, 1, 0, 1])

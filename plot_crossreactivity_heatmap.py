@@ -5,12 +5,13 @@ import argparse
 from math import pi
 from matplotlib.ticker import FormatStrFormatter
 
-def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv):
+def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
     # Load data from CSV files with proper error handling
     try:
         mean_mod_rates_df = pd.read_csv(mean_csv, index_col=0, delimiter=';')
         sum_intensity_df = pd.read_csv(sum_intensity_csv, index_col=0, delimiter=';')
         std_dev_csv_df = pd.read_csv(std_dev_csv, index_col=0, delimiter=';')
+        data_qual_csv_df = pd.read_csv(data_qual_csv, index_col=0, delimiter=';')
     except Exception as e:
         print(f"Error loading CSV files: {e}")
         return
@@ -22,16 +23,20 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv):
     print(sum_intensity_df)
     print("\nLoaded Standard Deviation DataFrame:")
     print(std_dev_csv_df)
+    print("\nLoaded Data Quality DataFrame:")
+    print(data_qual_csv_df)
 
     # Check for NaN values in the dataframes
-    if mean_mod_rates_df.isnull().any().any() or sum_intensity_df.isnull().any().any() or std_dev_csv_df.isnull().any().any():
+    if (mean_mod_rates_df.isnull().any().any() or sum_intensity_df.isnull().any().any()
+            or std_dev_csv_df.isnull().any().any() or data_qual_csv_df.isnull().any().any()):
         print("Warning: Found NaN values in the input data.")
         mean_mod_rates_df = mean_mod_rates_df.fillna(0)
         sum_intensity_df = sum_intensity_df.fillna(0)
         std_dev_csv_df = std_dev_csv_df.fillna(0)
+        data_qual_csv_df = data_qual_csv_df.fillna(0)
 
-    # Ensure same shape of all DataFrames
-    if mean_mod_rates_df.shape != sum_intensity_df.shape or mean_mod_rates_df.shape != std_dev_csv_df.shape:
+    dfs = [mean_mod_rates_df, sum_intensity_df, std_dev_csv_df, data_qual_csv_df]
+    if not all(df.shape == dfs[0].shape for df in dfs):
         print("Error: Input CSV files must have the same shape.")
         return
 
@@ -39,12 +44,7 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv):
     mean_mod_rates = mean_mod_rates_df.to_numpy()
     sum_intensity = sum_intensity_df.to_numpy()
     std_dev = std_dev_csv_df.to_numpy()
-
-    # Set zero or negative values in sum_intensity to a very small positive value
-    sum_intensity_safe = np.where(sum_intensity <= 0, 1e-10, sum_intensity)
-
-    # Compute log10 of sum intensity
-    log_sum_intensity = np.log10(sum_intensity_safe)
+    data_qual = data_qual_csv_df.to_numpy()
 
     # Define colors for peptides and enzymes directly as dictionaries
     color_map = {
@@ -124,12 +124,19 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv):
     # Normalize circle sizes and scale them based on log_sum_intensity
     cmap = plt.colormaps["Greys"]  # Use a grayscale colormap
 
+    # Marker mapping for data quality
+    quality_marker_map = {
+        1: 'X',    # No data available
+        2: '*',    # Triangle for low quality
+    }
+
     # Plot circles based on mean (color) and sum intensity (size)
     for i in range(mean_mod_rates.shape[0]):
         for j in range(mean_mod_rates.shape[1]):
             mean_val = mean_mod_rates[i, j]  # color is based on mean conversion rate
             intensity_val = sum_intensity[i, j]  # circle size is based on sum intensity
             std_dev_val = std_dev[i, j]  # line width based on standard deviation
+            qual_val = data_qual[i, j]  # use data quality for indication markers
 
             # Grayscale color based on mean conversion rate
             color = cmap(mean_val)
@@ -161,6 +168,11 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv):
             if size_std_dev > 0:
                 ax.scatter(j + 0.5, i + 0.5, s=size_std_dev,
                            color=color, edgecolor='none')
+
+            # Draw marker if qual_val != 0. 0 indicates high quality, so no marker.
+            if qual_val in quality_marker_map:
+                ax.scatter(j + 0.5, i + 0.5, s=100,  # fixed size for visibility
+                           color='black', marker=quality_marker_map[qual_val], edgecolor='none')
 
     # Legend for circle standard deviation sizes
     ax_legend.axis([0, 1, 0, 1])
@@ -218,8 +230,10 @@ def main():
                         help="Path to the CSV file containing sum intensity values.")
     parser.add_argument('-std_dev_csv', type=str, required=True,
                         help="Path to the CSV file containing standard deviation values.")
+    parser.add_argument('-data_qual_csv', type=str, required=True,
+                        help="Path to the CSV file containing data quality indicators.")
     args = parser.parse_args()
-    plot_heatmap(args.mean_csv, args.sum_intensity_csv, args.std_dev_csv)
+    plot_heatmap(args.mean_csv, args.sum_intensity_csv, args.std_dev_csv, args.data_qual_csv)
 
 
 if __name__ == '__main__':

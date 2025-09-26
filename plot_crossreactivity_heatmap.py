@@ -157,17 +157,17 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
             size_intensity = pi * (radius_intensity_points ** 2)
             size_std_dev = pi * (radius_std_dev_points ** 2)
 
-            # Draw edge if size > 0
-            # edge size is based on sum intensity
-            if size_intensity > 0:
-                ax.scatter(j + 0.5, i + 0.5, s=size_intensity,
-                           color="none", edgecolor="black", linewidth=0.2)
-
             # Draw circle if size > 0
             # circle size is based on sum intensity and standard deviation
             if size_std_dev > 0:
                 ax.scatter(j + 0.5, i + 0.5, s=size_std_dev,
                            color=color, edgecolor='none')
+
+            # Draw edge if size > 0
+            # edge size is based on sum intensity
+            if size_intensity > 0:
+                ax.scatter(j + 0.5, i + 0.5, s=size_intensity,
+                           color="none", edgecolor="#AAAAAA", linewidth=1)
 
             # Draw marker if qual_val != 0. 0 indicates high quality, so no marker.
             if qual_val in quality_marker_map:
@@ -197,8 +197,8 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
     for i, std_dev_value in enumerate(example_std_dev_values):
         radius_norm_std_dev_points = max_radius_points * (normalized_example_sum_value * (1 - np.sqrt(std_dev_value)))
         size = pi * (radius_norm_std_dev_points ** 2)
-        ax_legend.scatter(0.5, legend_y_positions[i], s=size_sum, facecolor='none', edgecolor='black', linewidth=0.2)
         ax_legend.scatter(0.5, legend_y_positions[i], s=size, facecolor='black', edgecolor='none')
+        ax_legend.scatter(0.5, legend_y_positions[i], s=size_sum, facecolor='none', edgecolor='#AAAAAA', linewidth=1)
         ax_legend.text(0.5, legend_y_positions[i]-0.07, f"{std_dev_value:.2f}", fontsize=16, ha='center')
 
     # Legend for circle intensity sizes
@@ -213,7 +213,7 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
     for i, (norm_val, sum_val) in enumerate(zip(normalized_example, example_sum_values)):
         radius_norm_points = max_radius_points * norm_val
         size = pi * (radius_norm_points ** 2)
-        ax_legend.scatter(0.5, legend_y_positions[i], s=size, facecolor='none', edgecolor='black', linewidth=0.2)
+        ax_legend.scatter(0.5, legend_y_positions[i], s=size, facecolor='none', edgecolor='#AAAAAA', linewidth=1)
         ax_legend.text(0.5, legend_y_positions[i]-0.07, f"{sum_val:.0e}".replace("+0", ""), fontsize=16, ha='center')
 
 

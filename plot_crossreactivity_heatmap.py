@@ -89,7 +89,7 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
         for col in mean_mod_rates_df.columns
     ]
     ax.set_xticks(np.arange(mean_mod_rates.shape[1]) + 0.5)
-    ax.set_xticklabels(mean_mod_rates_df.columns, fontsize=24, weight='bold', rotation=45)
+    ax.set_xticklabels(mean_mod_rates_df.columns, fontsize=20, weight='bold', rotation=45)
     for i, label in enumerate(ax.get_xticklabels()):
         label.set_color(x_colors[i])
 
@@ -98,7 +98,7 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
         for idx in mean_mod_rates_df.index
     ]
     ax.set_yticks(np.arange(mean_mod_rates.shape[0]) + 0.5)
-    ax.set_yticklabels(mean_mod_rates_df.index, fontsize=24, weight='bold')
+    ax.set_yticklabels(mean_mod_rates_df.index, fontsize=20, weight='bold')
     for i, label in enumerate(ax.get_yticklabels()):
         label.set_color(y_colors[i])
 
@@ -178,14 +178,14 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
     sm = plt.cm.ScalarMappable(cmap="Greys", norm=plt.Normalize(vmin=0, vmax=1))
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, fraction=0.023)
-    cbar.ax.set_title('Conversion\nRate', fontsize=16, y=1.035)
+    cbar.ax.set_title('modification\nrate', fontsize=16, y=1.045)
     cbar.ax.tick_params(labelsize=16)
     cbar.ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
 
     # Legend for circle standard deviation sizes
     ax_legend.axis([0, 1, 0, 1])
     ax_legend.axis('off')
-    ax_legend.text(0.5, 0.96, "Standard\nDeviation", fontsize=16, ha='center')
+    ax_legend.text(0.5, 0.96, "standard\ndeviation", fontsize=16, ha='center')
 
     example_sum_value = 10**8  # fixed value for std dev legend
     normalized_example_sum_value = np.log10(example_sum_value) / 10.0
@@ -204,7 +204,7 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
     # Legend for circle intensity sizes
     ax_legend.axis([0, 1, 0, 1])
     ax_legend.axis('off')
-    ax_legend.text(0.5, 0.41, "Sum\nIntensity", fontsize=16, ha='center')
+    ax_legend.text(0.5, 0.41, "overall\nsum\nintensity", fontsize=16, ha='center')
 
     example_sum_values = [10**9, 10**7, 10**5]  # example values to cover log range
     normalized_example = np.log10(example_sum_values) / 10.0

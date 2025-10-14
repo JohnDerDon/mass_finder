@@ -126,7 +126,7 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
 
     # Marker mapping for data quality
     quality_marker_map = {
-        1: 'X',    # No data available
+        1: '',    # No data available
         2: '*',    # Triangle for low quality
     }
 
@@ -141,8 +141,8 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
             # Grayscale color based on mean conversion rate
             color = cmap(mean_val)
 
-            # Handle invalid/zero values safely for log10
-            if intensity_val <= 0:
+            # Handle invalid/zero values safely for log10 or quality values not 0
+            if intensity_val <= 0 or qual_val!= 0:
                 radius_intensity_factor = radius_std_dev_factor = 0.0
             else:
                 log_intensity_val = np.log10(intensity_val)  # log10 scaling

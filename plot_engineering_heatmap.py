@@ -178,7 +178,7 @@ def plot_heatmap(mean_csv, sum_intensity_csv, std_dev_csv, data_qual_csv):
     sm = plt.cm.ScalarMappable(cmap="Greys", norm=plt.Normalize(vmin=0, vmax=1))
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, orientation='horizontal', location='top', fraction=0.046, pad=0.15, shrink=0.8, aspect=30)
-    cbar.ax.set_title('acylation rate', fontsize=20, y=2.4)
+    cbar.ax.set_title('conversion', fontsize=20, y=2.4)
     cbar.ax.tick_params(labelsize=20)
     cbar.ax.yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
 

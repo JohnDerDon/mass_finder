@@ -454,10 +454,24 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
         arginase_pattern = r"(C1H2N2|CH2N2)"
         return re.fullmatch(arginase_pattern, part) is not None
 
+    def is_Locher_Lab_glycosylation(part):
+        """
+        Returns True if `part` matches the Locher Lab bacterial glycosylation sum formula:
+        - C46H76N2O35
+        - glyco
+        """
+        glycosylation_formula = r"C46H76N2O35"
+        glycosylation_min_string = r"glyco"
+        return (re.fullmatch(glycosylation_formula, part) or
+                re.search(glycosylation_min_string, part, re.IGNORECASE) is not None)
+
     # Assign colors based on conditions
     pink_index = 0
-    gray_index = 0
     green_index = 0
+    yellow_index = 0
+    blue_index = 0
+    red_index = 0
+    gray_index = 0
 
     for identifier in sorted_unique_identifiers:
         # Split the identifier by the pattern (X) where X is a positive or negative digit, e.g., (1), (2), etc.
@@ -473,6 +487,11 @@ def plot_results(analyzed_spectra, output_file, time_range, mass_range, overwrit
             # Assign green color
             color = color_df[color_df["Color Identifier"] == f"Green{green_index + 1}"]["Hex Code"].values[0]
             green_index = (green_index + 1) % 6  # Loop through Green1 to Green6
+        # Check if any part matches the Locher Lab glycosylation condition
+        elif any(is_Locher_Lab_glycosylation(part) for part in parts):
+            # Assign yellow color
+            color = color_df[color_df["Color Identifier"] == f"Yellow{yellow_index + 1}"]["Hex Code"].values[0]
+            yellow_index = (yellow_index + 1) % 6  # Loop through Yellow1 to Yellow6
         else:
             # Assign gray color
             color = color_df[color_df["Color Identifier"] == f"Gray{gray_index + 1}"]["Hex Code"].values[0]
